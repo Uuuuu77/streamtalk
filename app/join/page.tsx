@@ -1,49 +1,40 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Users, ArrowRight, LinkIcon } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Users, ArrowRight, LinkIcon, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
 export default function JoinPage() {
   const [sessionId, setSessionId] = useState("")
   const [isJoining, setIsJoining] = useState(false)
-  const { toast } = useToast()
-  const router = useRouter()
+  const [error, setError] = useState("")
 
-  const handleJoinSession = async () => {
+  const handleJoinSession = () => {
     if (!sessionId.trim()) {
-      toast({
-        title: "Session ID required",
-        description: "Please enter a valid session ID or link",
-        variant: "destructive",
-      })
+      setError("Please enter a valid session ID or link")
       return
     }
 
     try {
       setIsJoining(true)
+      setError("")
 
       // Extract session ID from full URL if provided
       const extractedId = sessionId.includes("/join/") ? sessionId.split("/join/")[1] : sessionId
 
-      // Simulate joining delay
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Use Next.js router for navigation
-      router.push(`/viewer/${extractedId}`)
-    } catch (error) {
-      console.error("Failed to join session:", error)
-      toast({
-        title: "Failed to join",
-        description: "There was an error joining the session. Please try again.",
-        variant: "destructive",
-      })
+      // Simple timeout to simulate joining
+      setTimeout(() => {
+        if (typeof window !== "undefined") {
+          window.location.href = `/viewer/${extractedId}`
+        }
+      }, 1500)
+    } catch (err) {
+      console.error("Failed to join session:", err)
+      setError("There was an error joining the session. Please try again.")
       setIsJoining(false)
     }
   }
@@ -53,23 +44,12 @@ export default function JoinPage() {
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         const text = await navigator.clipboard.readText()
         setSessionId(text)
-        toast({
-          title: "Pasted from clipboard",
-          description: "Session link has been pasted",
-        })
+        setError("")
       } else {
-        toast({
-          title: "Clipboard not supported",
-          description: "Please paste the link manually",
-          variant: "destructive",
-        })
+        setError("Clipboard not supported. Please paste the link manually.")
       }
     } catch (err) {
-      toast({
-        title: "Clipboard access denied",
-        description: "Please paste the link manually",
-        variant: "destructive",
-      })
+      setError("Clipboard access denied. Please paste the link manually.")
     }
   }
 
@@ -77,7 +57,7 @@ export default function JoinPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Join <span className="text-purple-400">StreamTalk</span>
           </h1>
           <p className="text-gray-300">Enter a session ID or paste the link shared by the streamer</p>
@@ -96,7 +76,10 @@ export default function JoinPage() {
               <div className="flex gap-2">
                 <Input
                   value={sessionId}
-                  onChange={(e) => setSessionId(e.target.value)}
+                  onChange={(e) => {
+                    setSessionId(e.target.value)
+                    setError("")
+                  }}
                   placeholder="stream-abc123 or full link"
                   className="bg-slate-900 border-slate-600 text-white"
                   onKeyPress={(e) => e.key === "Enter" && handleJoinSession()}
@@ -111,6 +94,13 @@ export default function JoinPage() {
                 </Button>
               </div>
             </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 p-3 rounded-lg">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
+            )}
 
             <Button
               onClick={handleJoinSession}

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,19 +9,20 @@ import Link from "next/link"
 
 export default function HomePage() {
   const [isCreating, setIsCreating] = useState(false)
-  const router = useRouter()
 
-  const handleCreateSession = async () => {
+  const handleCreateSession = () => {
     try {
       setIsCreating(true)
 
-      // Simulate session creation delay
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Use Next.js router for navigation
-      router.push("/streamer/dashboard")
+      // Simple timeout to simulate session creation
+      setTimeout(() => {
+        // Use window.location for navigation as a fallback
+        if (typeof window !== "undefined") {
+          window.location.href = "/streamer/dashboard"
+        }
+      }, 1500)
     } catch (error) {
-      console.error("Failed to create session:", error)
+      console.error("Error creating session:", error)
       setIsCreating(false)
     }
   }
@@ -37,11 +37,11 @@ export default function HomePage() {
             Revolutionary Live Streaming
           </div>
 
-          <h1 className="text-6xl font-bold text-white mb-6">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
             Stream<span className="text-purple-400">Talk</span>
           </h1>
 
-          <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+          <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
             Transform your one-way livestreams into dynamic, two-way audio conversations. Give every viewer a voice with
             real-time audio interaction.
           </p>
@@ -126,15 +126,15 @@ export default function HomePage() {
 
         {/* Live Demo Section */}
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-white mb-8">See It In Action</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-8">See It In Action</h2>
           <div className="bg-slate-800/50 rounded-lg p-8 max-w-4xl mx-auto">
             <div className="aspect-video bg-slate-900 rounded-lg flex items-center justify-center mb-4">
               <div className="text-center">
-                <Play className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                <Play className="w-12 md:w-16 h-12 md:h-16 text-purple-400 mx-auto mb-4" />
                 <p className="text-gray-300">Interactive Demo Coming Soon</p>
               </div>
             </div>
-            <div className="flex justify-center gap-4 flex-wrap">
+            <div className="flex justify-center gap-2 md:gap-4 flex-wrap">
               <Badge variant="secondary" className="bg-green-500/20 text-green-400">
                 <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
                 Live Audio Queue
