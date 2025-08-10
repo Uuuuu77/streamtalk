@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,13 +10,21 @@ import Link from "next/link"
 
 export default function HomePage() {
   const [isCreating, setIsCreating] = useState(false)
+  const router = useRouter()
 
   const handleCreateSession = async () => {
-    setIsCreating(true)
-    // Simulate session creation
-    setTimeout(() => {
-      window.location.href = "/streamer/dashboard"
-    }, 1500)
+    try {
+      setIsCreating(true)
+
+      // Simulate session creation delay
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // Use Next.js router for navigation
+      router.push("/streamer/dashboard")
+    } catch (error) {
+      console.error("Failed to create session:", error)
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -125,7 +134,7 @@ export default function HomePage() {
                 <p className="text-gray-300">Interactive Demo Coming Soon</p>
               </div>
             </div>
-            <div className="flex justify-center gap-4">
+            <div className="flex justify-center gap-4 flex-wrap">
               <Badge variant="secondary" className="bg-green-500/20 text-green-400">
                 <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
                 Live Audio Queue

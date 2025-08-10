@@ -29,7 +29,7 @@ export default function ViewerPage({ params }: ViewerPageProps) {
   // Simulate connection and queue updates
   useEffect(() => {
     // Simulate connection
-    setTimeout(() => {
+    const connectionTimer = setTimeout(() => {
       setConnectionStatus("connected")
       toast({
         title: "Connected to stream!",
@@ -37,8 +37,12 @@ export default function ViewerPage({ params }: ViewerPageProps) {
       })
     }, 2000)
 
-    // Simulate queue position updates
-    if (isInQueue && !isSelected) {
+    return () => clearTimeout(connectionTimer)
+  }, [toast])
+
+  // Simulate queue position updates
+  useEffect(() => {
+    if (isInQueue && !isSelected && queuePosition && queuePosition > 1) {
       const interval = setInterval(() => {
         setQueuePosition((prev) => {
           if (prev && prev > 1) {
@@ -52,7 +56,7 @@ export default function ViewerPage({ params }: ViewerPageProps) {
 
       return () => clearInterval(interval)
     }
-  }, [isInQueue, isSelected, toast])
+  }, [isInQueue, isSelected, queuePosition])
 
   // Speaking timer
   useEffect(() => {
@@ -92,17 +96,23 @@ export default function ViewerPage({ params }: ViewerPageProps) {
 
     // Request microphone permission
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true })
-      setAudioReady(true)
-      setIsInQueue(true)
-      setQueuePosition(Math.floor(Math.random() * 8) + 1) // Random position 1-8
-      setEstimatedWait(`~${queuePosition! * 2} minutes`)
+      if (typeof navigator !== "undefined" && navigator.mediaDevices) {
+        await navigator.mediaDevices.getUserMedia({ audio: true })
+        setAudioReady(true)
+        setIsInQueue(true)
+        const randomPosition = Math.floor(Math.random() * 8) + 1
+        setQueuePosition(randomPosition)
+        setEstimatedWait(`~${randomPosition * 2} minutes`)
 
-      toast({
-        title: "Joined audio queue!",
-        description: `You're #${queuePosition} in line. We'll notify you when it's your turn.`,
-      })
+        toast({
+          title: "Joined audio queue!",
+          description: `You're #${randomPosition} in line. We'll notify you when it's your turn.`,
+        })
+      } else {
+        throw new Error("Media devices not supported")
+      }
     } catch (error) {
+      console.error("Microphone access error:", error)
       toast({
         title: "Microphone access denied",
         description: "Please allow microphone access to join the queue",

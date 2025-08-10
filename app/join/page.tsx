@@ -1,17 +1,20 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Users, ArrowRight, LinkIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 export default function JoinPage() {
   const [sessionId, setSessionId] = useState("")
   const [isJoining, setIsJoining] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
 
   const handleJoinSession = async () => {
     if (!sessionId.trim()) {
@@ -23,25 +26,44 @@ export default function JoinPage() {
       return
     }
 
-    setIsJoining(true)
+    try {
+      setIsJoining(true)
 
-    // Extract session ID from full URL if provided
-    const extractedId = sessionId.includes("/join/") ? sessionId.split("/join/")[1] : sessionId
+      // Extract session ID from full URL if provided
+      const extractedId = sessionId.includes("/join/") ? sessionId.split("/join/")[1] : sessionId
 
-    // Simulate joining
-    setTimeout(() => {
-      window.location.href = `/viewer/${extractedId}`
-    }, 1500)
+      // Simulate joining delay
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // Use Next.js router for navigation
+      router.push(`/viewer/${extractedId}`)
+    } catch (error) {
+      console.error("Failed to join session:", error)
+      toast({
+        title: "Failed to join",
+        description: "There was an error joining the session. Please try again.",
+        variant: "destructive",
+      })
+      setIsJoining(false)
+    }
   }
 
   const handlePasteFromClipboard = async () => {
     try {
-      const text = await navigator.clipboard.readText()
-      setSessionId(text)
-      toast({
-        title: "Pasted from clipboard",
-        description: "Session link has been pasted",
-      })
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        const text = await navigator.clipboard.readText()
+        setSessionId(text)
+        toast({
+          title: "Pasted from clipboard",
+          description: "Session link has been pasted",
+        })
+      } else {
+        toast({
+          title: "Clipboard not supported",
+          description: "Please paste the link manually",
+          variant: "destructive",
+        })
+      }
     } catch (err) {
       toast({
         title: "Clipboard access denied",
@@ -137,9 +159,9 @@ export default function JoinPage() {
         <div className="text-center mt-6">
           <p className="text-gray-400 text-sm">
             Don't have a session link?{" "}
-            <a href="/" className="text-purple-400 hover:text-purple-300">
+            <Link href="/" className="text-purple-400 hover:text-purple-300">
               Create your own stream
-            </a>
+            </Link>
           </p>
         </div>
       </div>
