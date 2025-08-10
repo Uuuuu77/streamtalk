@@ -19,6 +19,7 @@ interface QueuedViewer {
 }
 
 export default function StreamerDashboard() {
+  const [mounted, setMounted] = useState(false)
   const [sessionId] = useState("stream-" + Math.random().toString(36).substr(2, 9))
   const [isLive, setIsLive] = useState(false)
   const [queue, setQueue] = useState<QueuedViewer[]>([])
@@ -27,13 +28,20 @@ export default function StreamerDashboard() {
   const [maxSpeakingTime, setMaxSpeakingTime] = useState(45)
   const [volume, setVolume] = useState([80])
   const [autoSelect, setAutoSelect] = useState(false)
+  const [joinLink, setJoinLink] = useState("") // Initialize as empty string
   const { toast } = useToast()
 
-  const joinLink = `${window.location.origin}/join/${sessionId}`
+  useEffect(() => {
+    setMounted(true)
+    // Set joinLink only after component mounts and window is available
+    if (typeof window !== "undefined") {
+      setJoinLink(`${window.location.origin}/join/${sessionId}`)
+    }
+  }, [sessionId])
 
   // Simulate viewers joining queue
   useEffect(() => {
-    if (!isLive) return
+    if (!mounted || !isLive) return
 
     const interval = setInterval(() => {
       if (Math.random() > 0.7 && queue.length < 10) {
@@ -55,19 +63,23 @@ export default function StreamerDashboard() {
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [isLive, queue.length, toast])
+  }, [mounted, isLive, queue.length, toast])
 
   // Speaking timer
   useEffect(() => {
-    if (speakingTimeLeft > 0) {
-      const timer = setTimeout(() => {
-        setSpeakingTimeLeft((prev) => prev - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    } else if (speakingTimeLeft === 0 && activeViewer) {
-      handleEndSpeaking()
+    if (!mounted || speakingTimeLeft <= 0) return
+
+    if (speakingTimeLeft === 1 && activeViewer) {
+      // About to end
+      setTimeout(() => handleEndSpeaking(), 1000)
+      return
     }
-  }, [speakingTimeLeft, activeViewer])
+
+    const timer = setTimeout(() => {
+      setSpeakingTimeLeft((prev) => prev - 1)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [mounted, speakingTimeLeft, activeViewer])
 
   const handleStartStream = () => {
     setIsLive(true)
@@ -136,17 +148,37 @@ export default function StreamerDashboard() {
   }
 
   const copyJoinLink = () => {
-    navigator.clipboard.writeText(joinLink)
-    toast({
-      title: "Link copied!",
-      description: "Share this link with your viewers so they can join the audio queue.",
-    })
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(joinLink)
+      toast({
+        title: "Link copied!",
+        description: "Share this link with your viewers so they can join the audio queue.",
+      })
+    } else {
+      toast({
+        title: "Copy failed",
+        description: "Clipboard access not supported or denied.",
+        variant: "destructive",
+      })
+    }
   }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+          <h2 className="text-xl font-semibold text-white mb-2">Loading Dashboard</h2>
+          <p className="text-gray-300">Please wait...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

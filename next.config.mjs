@@ -9,9 +9,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ['@neondatabase/serverless'],
-  },
+  // Updated from experimental.serverComponentsExternalPackages to serverExternalPackages
+  serverExternalPackages: ['@neondatabase/serverless'],
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
