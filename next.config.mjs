@@ -9,6 +9,12 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: ['@neondatabase/serverless'],
+  },
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
 }
 
 export default nextConfig

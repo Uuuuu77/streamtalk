@@ -1,45 +1,41 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+// Simple in-memory storage for demo
+const queueEntries = new Map()
+const sessionQueues = new Map()
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, viewerId, viewerName } = await request.json()
+    const body = await request.json()
+    const { sessionId, viewerId, viewerName } = body
 
-    // Check if session exists and is active
-    const [session] = await sql`
-      SELECT * FROM sessions WHERE id = ${sessionId} AND status = 'active'
-    `
-
-    if (!session) {
-      return NextResponse.json({ success: false, error: "Session not found or inactive" }, { status: 404 })
+    if (!sessionId || !viewerId || !viewerName) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
     }
 
-    // Check if viewer is already in queue
-    const [existingEntry] = await sql`
-      SELECT * FROM queue_entries 
-      WHERE session_id = ${sessionId} AND viewer_id = ${viewerId} AND status = 'waiting'
-    `
+    // Get or create queue for session
+    const queue = sessionQueues.get(sessionId) || []
 
+    // Check if viewer is already in queue
+    const existingEntry = queue.find((entry: any) => entry.viewerId === viewerId)
     if (existingEntry) {
       return NextResponse.json({ success: false, error: "Already in queue" }, { status: 400 })
     }
 
-    // Get current queue position
-    const [{ count }] = await sql`
-      SELECT COUNT(*) as count FROM queue_entries 
-      WHERE session_id = ${sessionId} AND status = 'waiting'
-    `
+    const position = queue.length + 1
+    const queueEntry = {
+      id: `queue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      sessionId,
+      viewerId,
+      viewerName,
+      position,
+      status: "waiting",
+      joinedAt: new Date().toISOString(),
+    }
 
-    const position = Number.parseInt(count) + 1
-
-    // Add to queue
-    const [queueEntry] = await sql`
-      INSERT INTO queue_entries (session_id, viewer_id, viewer_name, position, status, joined_at)
-      VALUES (${sessionId}, ${viewerId}, ${viewerName}, ${position}, 'waiting', NOW())
-      RETURNING *
-    `
+    queue.push(queueEntry)
+    sessionQueues.set(sessionId, queue)
+    queueEntries.set(queueEntry.id, queueEntry)
 
     return NextResponse.json({
       success: true,
@@ -64,15 +60,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Session ID required" }, { status: 400 })
     }
 
-    const queueEntries = await sql`
-      SELECT * FROM queue_entries 
-      WHERE session_id = ${sessionId} AND status = 'waiting'
-      ORDER BY position ASC
-    `
+    const queue = sessionQueues.get(sessionId) || []
 
     return NextResponse.json({
       success: true,
-      queue: queueEntries,
+      queue: queue.filter((entry: any) => entry.status === "waiting"),
     })
   } catch (error) {
     console.error("Queue fetch error:", error)
@@ -82,24 +74,22 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { sessionId, viewerId } = await request.json()
+    const body = await request.json()
+    const { sessionId, viewerId } = body
 
-    await sql`
-      UPDATE queue_entries 
-      SET status = 'left', left_at = NOW()
-      WHERE session_id = ${sessionId} AND viewer_id = ${viewerId} AND status = 'waiting'
-    `
+    if (!sessionId || !viewerId) {
+      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 })
+    }
 
-    // Reorder remaining queue positions
-    await sql`
-      UPDATE queue_entries 
-      SET position = position - 1
-      WHERE session_id = ${sessionId} AND status = 'waiting' AND position > (
-        SELECT position FROM queue_entries 
-        WHERE session_id = ${sessionId} AND viewer_id = ${viewerId} AND status = 'left'
-        LIMIT 1
-      )
-    `
+    let queue = sessionQueues.get(sessionId) || []
+    queue = queue.filter((entry: any) => entry.viewerId !== viewerId)
+
+    // Reorder positions
+    queue.forEach((entry: any, index: number) => {
+      entry.position = index + 1
+    })
+
+    sessionQueues.set(sessionId, queue)
 
     return NextResponse.json({
       success: true,
