@@ -17,12 +17,13 @@ export async function POST(req: NextRequest) {
       recordingEnabled: body.recordingEnabled,
     });
     
-    // Generate shareable link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-                    (req.headers.get('host')?.includes('localhost') 
-                      ? `http://${req.headers.get('host')}` 
-                      : `https://${req.headers.get('host')}`);
+    // Generate shareable link - use the main production domain
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://streamtalk-delta.vercel.app'
+      : process.env.NEXT_PUBLIC_APP_URL || 
+        (req.headers.get('host')?.includes('localhost') 
+          ? `http://${req.headers.get('host')}` 
+          : `https://${req.headers.get('host')}`);
     
     const shareableLink = `${baseUrl}/join/${session.id}`;
     
