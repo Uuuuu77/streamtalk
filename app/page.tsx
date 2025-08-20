@@ -1,43 +1,44 @@
-"use client"
+'use client';
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Mic, Users, Zap, Share2, Play } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Mic, Users, Zap, Share2, Play, ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
-  const [isCreating, setIsCreating] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
+  const [joinSessionId, setJoinSessionId] = useState('');
+  const [mounted, setMounted] = useState(false);
 
   // Ensure component is mounted before rendering interactive elements
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   const handleCreateSession = async () => {
     try {
-      setIsCreating(true)
-
-      // Simulate session creation
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // Safe navigation
-      if (mounted && typeof window !== "undefined") {
-        window.location.href = "/streamer/dashboard"
-      }
+      setIsCreating(true);
+      
+      // Navigate directly to dashboard where user can create session
+      router.push('/streamer/dashboard');
     } catch (error) {
-      console.error("Session creation failed:", error)
-      setIsCreating(false)
+      console.error('Navigation failed:', error);
+      setIsCreating(false);
     }
-  }
+  };
+
+  const handleJoinSession = () => {
+    if (!joinSessionId.trim()) return;
+    router.push(`/join/${joinSessionId.trim()}`);
+  };
 
   // Don't render interactive elements until mounted
   if (!mounted) {
-    return <LoadingPage />
+    return <LoadingPage />;
   }
 
   return (
@@ -58,36 +59,70 @@ export default function HomePage() {
             real-time audio interaction.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button
-              size="lg"
-              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleCreateSession}
-              disabled={isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating Session...
-                </>
-              ) : (
-                <>
-                  <Mic className="w-5 h-5 mr-2" />
-                  Start Streaming
-                </>
-              )}
-            </Button>
+          <div className="flex flex-col lg:flex-row gap-8 justify-center items-start max-w-4xl mx-auto">
+            {/* Create Session Card */}
+            <Card className="bg-slate-800/50 border-slate-700 flex-1">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Mic className="w-5 h-5 text-purple-400" />
+                  For Streamers
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-gray-300 text-sm">
+                  Start your interactive streaming session and let your audience speak directly to you.
+                </p>
+                <Button
+                  size="lg"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={handleCreateSession}
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Create Session
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
 
-            <Link href="/join" className="inline-block">
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-purple-400 text-purple-400 hover:bg-purple-400 hover:text-white px-8 py-3 bg-transparent"
-              >
-                <Users className="w-5 h-5 mr-2" />
-                Join Stream
-              </Button>
-            </Link>
+            {/* Join Session Card */}
+            <Card className="bg-slate-800/50 border-slate-700 flex-1">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-400" />
+                  For Viewers
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-gray-300 text-sm">
+                  Join an active session with a session ID to participate in the audio queue.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={joinSessionId}
+                    onChange={(e) => setJoinSessionId(e.target.value)}
+                    placeholder="Enter session ID"
+                    className="bg-slate-900 border-slate-600 text-white flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && handleJoinSession()}
+                  />
+                  <Button
+                    onClick={handleJoinSession}
+                    disabled={!joinSessionId.trim()}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -110,11 +145,39 @@ export default function HomePage() {
           />
         </div>
 
+        {/* How It Works */}
+        <div className="text-center mb-16">
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-8">How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="space-y-4">
+              <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mx-auto">
+                <span className="text-white font-bold">1</span>
+              </div>
+              <h3 className="text-white font-semibold">Create Session</h3>
+              <p className="text-gray-400 text-sm">Start your StreamTalk session and get a shareable link</p>
+            </div>
+            <div className="space-y-4">
+              <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mx-auto">
+                <span className="text-white font-bold">2</span>
+              </div>
+              <h3 className="text-white font-semibold">Share & Stream</h3>
+              <p className="text-gray-400 text-sm">Share your link while streaming on any platform</p>
+            </div>
+            <div className="space-y-4">
+              <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mx-auto">
+                <span className="text-white font-bold">3</span>
+              </div>
+              <h3 className="text-white font-semibold">Interactive Audio</h3>
+              <p className="text-gray-400 text-sm">Viewers join your audio queue and speak directly to you</p>
+            </div>
+          </div>
+        </div>
+
         {/* Demo Section */}
         <DemoSection />
       </div>
     </div>
-  )
+  );
 }
 
 function LoadingPage() {
@@ -126,7 +189,7 @@ function LoadingPage() {
         <p className="text-gray-300">Please wait...</p>
       </div>
     </div>
-  )
+  );
 }
 
 function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
@@ -142,7 +205,7 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode; titl
         <p className="text-gray-300">{description}</p>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function DemoSection() {
@@ -170,5 +233,5 @@ function DemoSection() {
         </div>
       </div>
     </div>
-  )
+  );
 }

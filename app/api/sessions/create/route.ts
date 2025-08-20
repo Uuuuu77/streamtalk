@@ -16,12 +16,20 @@ export async function POST(req: NextRequest) {
       autoSelectEnabled: body.autoSelectEnabled,
       recordingEnabled: body.recordingEnabled,
     });
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (req.headers.get('host') ? `${req.headers.get('x-forwarded-proto') || 'http'}://${req.headers.get('host')}` : 'http://localhost:3000');
+    
+    // Generate shareable link
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                    (req.headers.get('host')?.includes('localhost') 
+                      ? `http://${req.headers.get('host')}` 
+                      : `https://${req.headers.get('host')}`);
+    
+    const shareableLink = `${baseUrl}/join/${session.id}`;
+    
     return NextResponse.json({
       success: true,
       session: {
         ...session,
-        joinLink: `${baseUrl}/join/${session.id}`,
+        shareableLink,
       },
     });
   } catch {

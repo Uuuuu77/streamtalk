@@ -1,442 +1,319 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
-import { Mic, MicOff, Users, Timer, Volume2, Settings, Share2, Copy, Shuffle, Play, Pause } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Users, Settings, Copy, Play, Square, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
-interface QueuedViewer {
-  id: string
-  name: string
-  joinedAt: Date
-  position: number
-  audioReady: boolean
-  avatar?: string
+interface Session {
+  id: string;
+  title: string;
+  description?: string;
+  maxSpeakingTime: number;
+  autoSelectEnabled: boolean;
+  recordingEnabled: boolean;
+  status: string;
+  shareableLink?: string;
+  queueLength?: number;
+  waitingViewers?: any[];
+  createdAt?: string;
 }
 
 export default function StreamerDashboard() {
-  const [mounted, setMounted] = useState(false)
-  const [sessionId] = useState("stream-" + Math.random().toString(36).substr(2, 9))
-  const [isLive, setIsLive] = useState(false)
-  const [queue, setQueue] = useState<QueuedViewer[]>([])
-  const [activeViewer, setActiveViewer] = useState<QueuedViewer | null>(null)
-  const [speakingTimeLeft, setSpeakingTimeLeft] = useState(0)
-  const [maxSpeakingTime, setMaxSpeakingTime] = useState(45)
-  const [volume, setVolume] = useState([80])
-  const [autoSelect, setAutoSelect] = useState(false)
-  const [joinLink, setJoinLink] = useState("") // Initialize as empty string
-  const { toast } = useToast()
+  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [copied, setCopied] = useState(false);
+  
+  // Form state
+  const [streamerId] = useState(`streamer-${Date.now()}`);
+  const [title, setTitle] = useState('My StreamTalk Session');
+  const [description, setDescription] = useState('');
+  const [maxSpeakingTime, setMaxSpeakingTime] = useState(45);
+  const [autoSelectEnabled, setAutoSelectEnabled] = useState(true);
+  const [recordingEnabled, setRecordingEnabled] = useState(false);
 
-  useEffect(() => {
-    setMounted(true)
-    // Set joinLink only after component mounts and window is available
-    if (typeof window !== "undefined") {
-      setJoinLink(`${window.location.origin}/join/${sessionId}`)
-    }
-  }, [sessionId])
-
-  // Simulate viewers joining queue
-  useEffect(() => {
-    if (!mounted || !isLive) return
-
-    const interval = setInterval(() => {
-      if (Math.random() > 0.7 && queue.length < 10) {
-        const newViewer: QueuedViewer = {
-          id: "viewer-" + Math.random().toString(36).substr(2, 9),
-          name: `Viewer ${Math.floor(Math.random() * 1000)}`,
-          joinedAt: new Date(),
-          position: queue.length + 1,
-          audioReady: Math.random() > 0.3,
-        }
-        setQueue((prev) => [...prev, newViewer])
-
-        toast({
-          title: "New viewer joined!",
-          description: `${newViewer.name} joined the audio queue`,
-          duration: 3000,
+  const createSession = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/sessions/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          streamerId,
+          title,
+          description,
+          maxSpeakingTime,
+          autoSelectEnabled,
+          recordingEnabled,
         })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSession(data.session);
+      } else {
+        console.error('Failed to create session:', data.error);
       }
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [mounted, isLive, queue.length, toast])
-
-  // Speaking timer
-  useEffect(() => {
-    if (!mounted || speakingTimeLeft <= 0) return
-
-    if (speakingTimeLeft === 1 && activeViewer) {
-      // About to end
-      setTimeout(() => handleEndSpeaking(), 1000)
-      return
+    } catch (error) {
+      console.error('Error creating session:', error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const timer = setTimeout(() => {
-      setSpeakingTimeLeft((prev) => prev - 1)
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [mounted, speakingTimeLeft, activeViewer])
+  const endSession = async () => {
+    if (!session) return;
+    
+    try {
+      const response = await fetch(`/api/sessions/${session.id}`, {
+        method: 'DELETE'
+      });
 
-  const handleStartStream = () => {
-    setIsLive(true)
-    toast({
-      title: "Stream started!",
-      description: "Your audio queue is now live. Share the link with your viewers.",
-      duration: 5000,
-    })
-  }
-
-  const handleStopStream = () => {
-    setIsLive(false)
-    setQueue([])
-    setActiveViewer(null)
-    setSpeakingTimeLeft(0)
-    toast({
-      title: "Stream ended",
-      description: "Your audio session has been terminated.",
-    })
-  }
-
-  const handleSelectViewer = (viewer: QueuedViewer) => {
-    if (activeViewer) {
-      toast({
-        title: "Someone is already speaking",
-        description: "Please wait for the current speaker to finish.",
-        variant: "destructive",
-      })
-      return
+      const data = await response.json();
+      
+      if (data.success) {
+        setSession(null);
+      }
+    } catch (error) {
+      console.error('Error ending session:', error);
     }
+  };
 
-    setActiveViewer(viewer)
-    setSpeakingTimeLeft(maxSpeakingTime)
-    setQueue((prev) => prev.filter((v) => v.id !== viewer.id))
-
-    toast({
-      title: "Viewer selected!",
-      description: `${viewer.name} can now speak for ${maxSpeakingTime} seconds.`,
-    })
-  }
-
-  const handleSelectRandom = () => {
-    const eligibleViewers = queue.filter((v) => v.audioReady)
-    if (eligibleViewers.length === 0) {
-      toast({
-        title: "No eligible viewers",
-        description: "No viewers with audio ready are in the queue.",
-        variant: "destructive",
-      })
-      return
+  const copyShareLink = async () => {
+    if (!session?.shareableLink) return;
+    
+    try {
+      await navigator.clipboard.writeText(session.shareableLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy link:', error);
     }
+  };
 
-    const randomViewer = eligibleViewers[Math.floor(Math.random() * eligibleViewers.length)]
-    handleSelectViewer(randomViewer)
-  }
-
-  const handleEndSpeaking = () => {
-    if (activeViewer) {
-      toast({
-        title: "Speaking time ended",
-        description: `${activeViewer.name}'s speaking time has ended.`,
-      })
-    }
-    setActiveViewer(null)
-    setSpeakingTimeLeft(0)
-  }
-
-  const copyJoinLink = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(joinLink)
-      toast({
-        title: "Link copied!",
-        description: "Share this link with your viewers so they can join the audio queue.",
-      })
-    } else {
-      toast({
-        title: "Copy failed",
-        description: "Clipboard access not supported or denied.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
-
-  if (!mounted) {
+  if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-          <h2 className="text-xl font-semibold text-white mb-2">Loading Dashboard</h2>
-          <p className="text-gray-300">Please wait...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Stream<span className="text-purple-400">Talk</span> Dashboard
+            </h1>
+            <p className="text-gray-300">Create and manage your interactive streaming session</p>
+          </div>
+
+          <Card className="bg-slate-800/50 border-slate-700 max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-white">Create New Session</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm">Session Title</label>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter session title"
+                  className="bg-slate-900 border-slate-600 text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm">Description (Optional)</label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of your session"
+                  className="bg-slate-900 border-slate-600 text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-gray-300 text-sm">Max Speaking Time (seconds)</label>
+                <Input
+                  type="number"
+                  value={maxSpeakingTime}
+                  onChange={(e) => setMaxSpeakingTime(Number(e.target.value))}
+                  min="15"
+                  max="300"
+                  className="bg-slate-900 border-slate-600 text-white"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-gray-300 text-sm font-medium">Auto-select speakers</label>
+                    <p className="text-gray-500 text-xs">Automatically select next speaker from queue</p>
+                  </div>
+                  <Switch
+                    checked={autoSelectEnabled}
+                    onCheckedChange={setAutoSelectEnabled}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-gray-300 text-sm font-medium">Enable recording</label>
+                    <p className="text-gray-500 text-xs">Record the entire session</p>
+                  </div>
+                  <Switch
+                    checked={recordingEnabled}
+                    onCheckedChange={setRecordingEnabled}
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={createSession}
+                disabled={loading || !title.trim()}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating Session...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Start Session
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-      <div className="container mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Streamer Dashboard</h1>
-            <p className="text-gray-300">Session ID: {sessionId}</p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Badge variant={isLive ? "default" : "secondary"} className={isLive ? "bg-green-500" : ""}>
-              <div className={`w-2 h-2 rounded-full mr-2 ${isLive ? "bg-white animate-pulse" : "bg-gray-400"}`}></div>
-              {isLive ? "LIVE" : "OFFLINE"}
-            </Badge>
-
-            {!isLive ? (
-              <Button onClick={handleStartStream} className="bg-green-600 hover:bg-green-700">
-                <Play className="w-4 h-4 mr-2" />
-                Start Stream
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Stream<span className="text-purple-400">Talk</span> Dashboard
+              </h1>
+              <p className="text-gray-300">{session.title}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+                Live
+              </Badge>
+              <Button
+                onClick={endSession}
+                variant="outline"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10 bg-transparent"
+              >
+                <Square className="w-4 h-4 mr-2" />
+                End Session
               </Button>
-            ) : (
-              <Button onClick={handleStopStream} variant="destructive">
-                <Pause className="w-4 h-4 mr-2" />
-                End Stream
-              </Button>
-            )}
+            </div>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Controls */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Share Link */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  <Share2 className="w-5 h-5 text-purple-400" />
-                  Share Audio Queue
+                  <Users className="w-5 h-5" />
+                  Audio Queue ({session.queueLength || 0})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-slate-900 rounded-lg p-3 text-gray-300 font-mono text-sm">{joinLink}</div>
-                  <Button onClick={copyJoinLink} size="sm">
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Active Speaker */}
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Mic className="w-5 h-5 text-purple-400" />
-                  Active Speaker
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {activeViewer ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-                          {activeViewer.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">{activeViewer.name}</p>
-                          <p className="text-gray-400 text-sm">Currently speaking</p>
-                        </div>
-                      </div>
-                      <Button onClick={handleEndSpeaking} variant="destructive" size="sm">
-                        <MicOff className="w-4 h-4 mr-2" />
-                        End Speaking
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-400">Time Remaining</span>
-                        <span className="text-white font-mono">{formatTime(speakingTimeLeft)}</span>
-                      </div>
-                      <div className="w-full bg-slate-700 rounded-full h-2">
-                        <div
-                          className="bg-purple-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(speakingTimeLeft / maxSpeakingTime) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-gray-400 text-sm">Speaker Volume</label>
-                      <div className="flex items-center gap-3">
-                        <Volume2 className="w-4 h-4 text-gray-400" />
-                        <Slider value={volume} onValueChange={setVolume} max={100} step={1} className="flex-1" />
-                        <span className="text-white text-sm w-12">{volume[0]}%</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <MicOff className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                    <p className="text-gray-400">No one is currently speaking</p>
-                    <p className="text-gray-500 text-sm">Select a viewer from the queue to give them the mic</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Queue Management */}
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-purple-400" />
-                    Audio Queue ({queue.length})
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={handleSelectRandom}
-                      size="sm"
-                      disabled={queue.filter((v) => v.audioReady).length === 0 || !!activeViewer}
-                      className="bg-purple-600 hover:bg-purple-700"
-                    >
-                      <Shuffle className="w-4 h-4 mr-2" />
-                      Random
-                    </Button>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {queue.length > 0 ? (
+                {session.waitingViewers && session.waitingViewers.length > 0 ? (
                   <div className="space-y-3">
-                    {queue.map((viewer, index) => (
-                      <div key={viewer.id} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                    {session.waitingViewers.map((viewer: any, index: number) => (
+                      <div
+                        key={viewer.id}
+                        className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg"
+                      >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                            {index + 1}
-                          </div>
-                          <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-                            {viewer.name.charAt(0)}
-                          </div>
+                          <Badge className="bg-purple-500/20 text-purple-300">
+                            #{viewer.position}
+                          </Badge>
                           <div>
-                            <p className="text-white font-medium">{viewer.name}</p>
-                            <p className="text-gray-400 text-sm">Joined {viewer.joinedAt.toLocaleTimeString()}</p>
+                            <p className="text-white font-medium">{viewer.viewerName}</p>
+                            <p className="text-gray-400 text-sm">
+                              Joined {new Date(viewer.joinedAt).toLocaleTimeString()}
+                            </p>
                           </div>
                         </div>
-
                         <div className="flex items-center gap-2">
+                          {viewer.audioReady ? (
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-yellow-400" />
+                          )}
                           <Badge
-                            variant={viewer.audioReady ? "default" : "secondary"}
-                            className={viewer.audioReady ? "bg-green-500" : ""}
+                            className={
+                              viewer.status === 'speaking'
+                                ? 'bg-green-500/20 text-green-400'
+                                : viewer.status === 'selected'
+                                ? 'bg-orange-500/20 text-orange-400'
+                                : 'bg-blue-500/20 text-blue-400'
+                            }
                           >
-                            {viewer.audioReady ? "Ready" : "Not Ready"}
+                            {viewer.status}
                           </Badge>
-                          <Button
-                            onClick={() => handleSelectViewer(viewer)}
-                            size="sm"
-                            disabled={!viewer.audioReady || !!activeViewer}
-                          >
-                            Select
-                          </Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                    <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
                     <p className="text-gray-400">No viewers in queue</p>
-                    <p className="text-gray-500 text-sm">Share your link to get viewers to join</p>
+                    <p className="text-gray-500 text-sm">Share your link to get started</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Settings Panel */}
           <div className="space-y-6">
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-purple-400" />
-                  Stream Settings
-                </CardTitle>
+                <CardTitle className="text-white text-sm">Share Session</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-gray-400 text-sm">Speaking Time Limit</label>
-                  <div className="flex items-center gap-3">
-                    <Timer className="w-4 h-4 text-gray-400" />
-                    <Slider
-                      value={[maxSpeakingTime]}
-                      onValueChange={(value) => setMaxSpeakingTime(value[0])}
-                      min={15}
-                      max={120}
-                      step={15}
-                      className="flex-1"
-                    />
-                    <span className="text-white text-sm w-12">{maxSpeakingTime}s</span>
-                  </div>
+              <CardContent className="space-y-3">
+                <div className="p-3 bg-slate-900/50 rounded-lg">
+                  <p className="text-gray-300 text-sm font-mono break-all">
+                    {session.shareableLink}
+                  </p>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white text-sm">Auto-select next viewer</p>
-                    <p className="text-gray-400 text-xs">Automatically pick the next speaker</p>
-                  </div>
-                  <Switch checked={autoSelect} onCheckedChange={setAutoSelect} />
-                </div>
-
-                <div className="pt-4 border-t border-slate-700">
-                  <h4 className="text-white text-sm font-medium mb-3">Quick Stats</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total Viewers</span>
-                      <span className="text-white">{queue.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Audio Ready</span>
-                      <span className="text-white">{queue.filter((v) => v.audioReady).length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Session Duration</span>
-                      <span className="text-white">{isLive ? "5:23" : "0:00"}</span>
-                    </div>
-                  </div>
-                </div>
+                <Button
+                  onClick={copyShareLink}
+                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  size="sm"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  {copied ? 'Copied!' : 'Copy Link'}
+                </Button>
               </CardContent>
             </Card>
 
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
-                <CardTitle className="text-white text-sm">Audio Quality</CardTitle>
+                <CardTitle className="text-white text-sm">Session Stats</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Latency</span>
-                    <Badge variant="secondary" className="bg-green-500/20 text-green-400">
-                      142ms
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Connection</span>
-                    <Badge variant="secondary" className="bg-green-500/20 text-green-400">
-                      Excellent
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Audio Quality</span>
-                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
-                      HD
-                    </Badge>
-                  </div>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Total Viewers</span>
+                  <span className="text-white">{session.queueLength || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Status</span>
+                  <Badge className="bg-green-500/20 text-green-400">Active</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -444,5 +321,5 @@ export default function StreamerDashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }

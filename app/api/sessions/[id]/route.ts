@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionStore } from '@/lib/core/sessionStore';
+import { queueManager } from '@/lib/core/queueManager';
 import { UpdateSessionSettingsInput } from '@/lib/core/types';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = sessionStore.get(params.id);
   if (!session) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ success: true, session });
+  
+  // Get queue information
+  const queue = queueManager.getWaiting(params.id);
+  
+  return NextResponse.json({ 
+    success: true, 
+    session: {
+      ...session,
+      queueLength: queue.length,
+      waitingViewers: queue,
+    }
+  });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {

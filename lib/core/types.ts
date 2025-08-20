@@ -1,7 +1,7 @@
 // Core shared types for StreamTalk Phase 1
 
 export type SessionStatus = 'active' | 'ended' | 'scheduled';
-export type QueueEntryStatus = 'waiting' | 'speaking' | 'completed' | 'left';
+export type QueueEntryStatus = 'waiting' | 'selected' | 'speaking' | 'completed' | 'left';
 
 export interface Session {
   id: string;
