@@ -5,13 +5,14 @@
     }
   },
   "env": {
-    "NEXT_PUBLIC_APP_URL": "https://streamtalk.vercel.app"
+    "NEXT_PUBLIC_APP_URL": "https://streamtalk-delta.vercel.app"
   },
   "build": {
     "env": {
-      "NEXT_PUBLIC_APP_URL": "https://streamtalk.vercel.app"
+      "NEXT_PUBLIC_APP_URL": "https://streamtalk-delta.vercel.app"
     }
   },
+  "buildCommand": "next build",
   "rewrites": [
     {
       "source": "/api/:path*",
