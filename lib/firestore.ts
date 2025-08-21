@@ -44,13 +44,11 @@ export class FirestoreService {
   // Room operations
   async createRoom(roomData: Omit<Room, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      const roomWithTimestamps = {
+      const docRef = await addDoc(collection(db, 'rooms'), {
         ...roomData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      };
-
-      const docRef = await addDoc(collection(db, 'rooms'), roomWithTimestamps);
+      });
       return docRef.id;
     } catch (error) {
       console.error('Error creating room:', error);
