@@ -49,14 +49,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       
+      // For now, allow unverified users but show a gentle reminder
       if (!result.user.emailVerified) {
         toast({
-          title: 'Email Verification Required',
-          description: 'Please verify your email before signing in.',
-          variant: 'destructive'
+          title: 'Email Verification Recommended',
+          description: 'For full security, please verify your email. Check your inbox for the verification link.',
+          variant: 'default'
         });
-        await signOut(auth);
-        return;
+        // Don't sign out unverified users, just show the reminder
       }
       
       toast({

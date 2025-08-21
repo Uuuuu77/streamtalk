@@ -234,36 +234,79 @@ export default function LandingPage({ setCurrentView, setSessionData, onShowAuth
           </p>
           
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button
-              size="lg"
-              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg disabled:opacity-50 min-w-[200px]"
-              onClick={handleCreateSession}
-              disabled={isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <PlayCircle className="w-5 h-5 mr-2" />
-                  Start Streaming
-                </>
-              )}
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 px-8 py-4 text-lg min-w-[200px]"
-              onClick={() => document.getElementById('join-section')?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              <Users className="w-5 h-5 mr-2" />
-              Join Stream
-            </Button>
-          </div>
+          {user ? (
+            <div className="space-y-4 mb-12">
+              <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4 max-w-md mx-auto">
+                <div className="flex items-center justify-center gap-2 text-green-400 mb-2">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">Welcome back, {user.displayName || user.email?.split('@')[0]}!</span>
+                </div>
+                <p className="text-green-300 text-sm">You're now signed in and ready to create or join streaming sessions.</p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Button
+                  size="lg"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg disabled:opacity-50 min-w-[200px]"
+                  onClick={handleCreateSession}
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle className="w-5 h-5 mr-2" />
+                      Start Your Stream
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 px-8 py-4 text-lg min-w-[200px]"
+                  onClick={() => document.getElementById('join-section')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  <Users className="w-5 h-5 mr-2" />
+                  Join Stream
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+              <Button
+                size="lg"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-4 text-lg disabled:opacity-50 min-w-[200px]"
+                onClick={handleCreateSession}
+                disabled={isCreating}
+              >
+                {isCreating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="w-5 h-5 mr-2" />
+                    Start Streaming
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-purple-500/50 text-purple-300 hover:bg-purple-500/10 px-8 py-4 text-lg min-w-[200px]"
+                onClick={() => document.getElementById('join-section')?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                <Users className="w-5 h-5 mr-2" />
+                Join Stream
+              </Button>
+            </div>
+          )}
           
           {/* Live Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">

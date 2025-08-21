@@ -108,7 +108,15 @@ export default function StreamTalkEnhanced() {
   const [audioPermission, setAudioPermission] = useState(false);
   
   // Firebase auth
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
+  
+  // Effect to handle auth state changes
+  useEffect(() => {
+    if (user && !loading) {
+      // User just signed in, show a helpful message
+      console.log('User authenticated:', user.email);
+    }
+  }, [user, loading]);
   
   // Check authentication for streamer actions
   const handleStreamerAction = () => {

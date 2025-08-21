@@ -64,13 +64,17 @@ export function AuthForm({ mode, onClose, onSuccess }: AuthFormProps) {
         onClose();
       } else {
         await signIn(formData.email, formData.password);
-        toast({
-          title: 'Welcome back!',
-          description: 'You have successfully signed in.',
-          variant: 'default'
-        });
-        onSuccess?.();
-        onClose();
+        
+        // Wait a moment for auth state to update
+        setTimeout(() => {
+          toast({
+            title: 'Welcome back! 🎉',
+            description: 'You have successfully signed in and can now create or join sessions.',
+            variant: 'default'
+          });
+          onSuccess?.();
+          onClose();
+        }, 500);
       }
     } catch (error: any) {
       toast({
