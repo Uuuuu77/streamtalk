@@ -9,12 +9,12 @@ import { toast } from '@/hooks/use-toast';
 import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 
 interface AuthFormProps {
-  mode: 'signin' | 'signup';
+  mode?: 'signin' | 'signup';
   onClose: () => void;
   onSuccess?: () => void;
 }
 
-export function AuthForm({ mode, onClose, onSuccess }: AuthFormProps) {
+export function AuthForm({ mode = 'signin', onClose, onSuccess }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({

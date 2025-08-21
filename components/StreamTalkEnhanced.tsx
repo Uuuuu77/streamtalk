@@ -29,8 +29,9 @@ import {
 } from 'lucide-react';
 
 // Components
-import LandingPage from '@/components/LandingPage';
-import { AuthForm } from '@/components/auth/AuthForm';
+import LandingPage from './LandingPage';
+import Dashboard from './Dashboard';
+import { AuthForm } from './auth/AuthForm';
 
 // Firebase and service imports
 import { useAuth } from '@/lib/auth';
@@ -110,13 +111,13 @@ export default function StreamTalkEnhanced() {
   // Firebase auth
   const { user, logout, loading } = useAuth();
   
-  // Effect to handle auth state changes
+  // Effect to handle auth state changes and dashboard redirect
   useEffect(() => {
-    if (user && !loading) {
-      // User just signed in, show a helpful message
-      console.log('User authenticated:', user.email);
+    if (user && !loading && currentView === 'landing') {
+      // User is authenticated and we're on landing, go to dashboard
+      setCurrentView('dashboard');
     }
-  }, [user, loading]);
+  }, [user, loading, currentView]);
   
   // Check authentication for streamer actions
   const handleStreamerAction = () => {
@@ -176,17 +177,22 @@ export default function StreamTalkEnhanced() {
     }
   };
   
+  // Dashboard view for authenticated users
+  if (currentView === 'dashboard' && user) {
+    return (
+      <Dashboard 
+        setCurrentView={setCurrentView}
+        setSessionData={setSessionData}
+      />
+    );
+  }
+  
   // Landing Page
-  if (currentView === 'landing') {
+  if (currentView === 'landing' || !user) {
     return (
       <>
         <LandingPage 
-          setCurrentView={setCurrentView} 
-          setSessionData={setSessionData}
-          onShowAuth={(mode) => {
-            setAuthMode(mode);
-            setShowAuthForm(true);
-          }}
+          setCurrentView={setCurrentView}
         />
         {showAuthForm && (
           <AuthForm
@@ -225,16 +231,11 @@ export default function StreamTalkEnhanced() {
     );
   }
   
-  // Fallback to landing if sessionData is null
+  // Fallback to landing if no specific view
   return (
     <>
       <LandingPage 
-        setCurrentView={setCurrentView} 
-        setSessionData={setSessionData}
-        onShowAuth={(mode) => {
-          setAuthMode(mode);
-          setShowAuthForm(true);
-        }}
+        setCurrentView={setCurrentView}
       />
       {showAuthForm && (
         <AuthForm
