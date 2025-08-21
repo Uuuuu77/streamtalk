@@ -23,8 +23,17 @@ import {
   UserPlus,
   Crown,
   Zap,
-  Activity
+  Activity,
+  LogOut,
+  User
 } from 'lucide-react';
+
+// Firebase and service imports
+import { useAuth } from '@/lib/auth';
+import { firestoreService, type Room, type Participant } from '@/lib/firestore';
+import { WebRTCService } from '@/lib/webrtc';
+import { AuthForm } from '@/components/auth/AuthForm';
+import { toast } from '@/hooks/use-toast';
 
 // Type definitions
 interface SessionData {
@@ -36,6 +45,7 @@ interface SessionData {
   viewerCount?: number;
   activeViewers?: any[];
   isViewer?: boolean;
+  hostId?: string;
 }
 
 interface Viewer {
@@ -44,6 +54,7 @@ interface Viewer {
   position: number;
   waitTime: string;
   joinedAt: Date;
+  isCurrentSpeaker?: boolean;
 }
 
 interface SessionStats {
@@ -97,14 +108,102 @@ interface ConnectionStatusProps {
 export default function StreamTalkEnhanced() {
   const [currentView, setCurrentView] = useState('landing'); // 'landing', 'streamer', 'viewer'
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [showAuthForm, setShowAuthForm] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   
   // Shared state
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [audioPermission, setAudioPermission] = useState(false);
   
+  // Firebase auth
+  const { user, logout } = useAuth();
+  
+  // Check authentication for streamer actions
+  const handleStreamerAction = () => {
+    if (!user) {
+      setAuthMode('signin');
+      setShowAuthForm(true);
+      return;
+    }
+    // Create session for authenticated user
+    createSession();
+  };
+  
+  const createSession = async () => {
+    if (!user) return;
+    
+    try {
+      const room: Omit<Room, 'id' | 'createdAt' | 'updatedAt'> = {
+        hostId: user.uid,
+        title: `${user.displayName || 'Anonymous'}'s Live Stream`,
+        description: 'Live audio interaction session',
+        isActive: true,
+        maxParticipants: 50,
+        speakingTimeLimit: 45,
+        currentSpeakerId: null,
+        participantQueue: []
+      };
+      
+      const roomId = await firestoreService.createRoom(room);
+      const joinLink = `${window.location.origin}/join/${roomId}`;
+      
+      const session: SessionData = {
+        id: roomId,
+        title: room.title,
+        joinLink,
+        maxSpeakingTime: room.speakingTimeLimit,
+        createdAt: new Date(),
+        viewerCount: 0,
+        activeViewers: [],
+        hostId: user.uid
+      };
+      
+      setSessionData(session);
+      setCurrentView('streamer');
+      
+      toast({
+        title: 'Session Created',
+        description: 'Your StreamTalk session is now live!',
+        variant: 'default'
+      });
+    } catch (error) {
+      console.error('Error creating session:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create session. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+  
   // Landing Page
   if (currentView === 'landing') {
-    return <LandingPage setCurrentView={setCurrentView} setSessionData={setSessionData} />;
+    return (
+      <>
+        <LandingPage 
+          setCurrentView={setCurrentView} 
+          setSessionData={setSessionData}
+          user={user}
+          onStreamerAction={handleStreamerAction}
+          onSignIn={() => {
+            setAuthMode('signin');
+            setShowAuthForm(true);
+          }}
+          onSignUp={() => {
+            setAuthMode('signup');
+            setShowAuthForm(true);
+          }}
+          onSignOut={logout}
+        />
+        {showAuthForm && (
+          <AuthForm
+            mode={authMode}
+            onClose={() => setShowAuthForm(false)}
+            onSuccess={() => setShowAuthForm(false)}
+          />
+        )}
+      </>
+    );
   }
   
   // Streamer Dashboard
@@ -134,54 +233,137 @@ export default function StreamTalkEnhanced() {
   }
   
   // Fallback to landing if sessionData is null
-  return <LandingPage setCurrentView={setCurrentView} setSessionData={setSessionData} />;
+  return (
+    <>
+      <LandingPage 
+        setCurrentView={setCurrentView} 
+        setSessionData={setSessionData}
+        user={user}
+        onStreamerAction={handleStreamerAction}
+        onSignIn={() => {
+          setAuthMode('signin');
+          setShowAuthForm(true);
+        }}
+        onSignUp={() => {
+          setAuthMode('signup');
+          setShowAuthForm(true);
+        }}
+        onSignOut={logout}
+      />
+      {showAuthForm && (
+        <AuthForm
+          mode={authMode}
+          onClose={() => setShowAuthForm(false)}
+          onSuccess={() => setShowAuthForm(false)}
+        />
+      )}
+    </>
+  );
 }
 
 // Landing Page Component
-function LandingPage({ setCurrentView, setSessionData }: LandingPageProps) {
+function LandingPage({ 
+  setCurrentView, 
+  setSessionData, 
+  user, 
+  onStreamerAction, 
+  onSignIn, 
+  onSignUp, 
+  onSignOut 
+}: LandingPageProps & {
+  user: any;
+  onStreamerAction: () => void;
+  onSignIn: () => void;
+  onSignUp: () => void;
+  onSignOut: () => void;
+}) {
   const [isCreating, setIsCreating] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   
-  const createSession = async () => {
+  const handleCreateSession = async () => {
     setIsCreating(true);
-    
-    // Simulate session creation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const sessionId = `stream-${Math.random().toString(36).substr(2, 9)}`;
-    const session: SessionData = {
-      id: sessionId,
-      title: "Live StreamTalk Session",
-      joinLink: `https://streamtalk.app/join/${sessionId}`,
-      maxSpeakingTime: 45,
-      createdAt: new Date(),
-      viewerCount: 0,
-      activeViewers: []
-    };
-    
-    setSessionData(session);
-    setCurrentView('streamer');
+    await onStreamerAction();
+    setIsCreating(false);
   };
   
-  const joinSession = () => {
-    if (joinCode.trim()) {
-      const sessionId = joinCode.includes('/join/') ? 
-        joinCode.split('/join/')[1] : joinCode.trim();
+  const joinSession = async () => {
+    if (!joinCode.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a session ID or link',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    const sessionId = joinCode.includes('/join/') ? 
+      joinCode.split('/join/')[1] : joinCode.trim();
+    
+    try {
+      // Check if room exists
+      const room = await firestoreService.getRoom(sessionId);
+      if (!room) {
+        throw new Error('Session not found');
+      }
       
       setSessionData({
         id: sessionId,
-        title: "StreamTalk Session",
+        title: room.title,
         isViewer: true
       });
       setCurrentView('viewer');
+    } catch (error) {
+      console.error('Error joining session:', error);
+      toast({
+        title: 'Error',
+        description: 'Session not found. Please check the ID and try again.',
+        variant: 'destructive'
+      });
     }
   };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-16">
-        {/* Header */}
+        {/* Header with Auth */}
         <div className="text-center mb-16">
+          {user ? (
+            <div className="flex justify-end mb-4">
+              <div className="flex items-center gap-4 bg-slate-800/50 rounded-lg px-4 py-2">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-purple-400" />
+                  <span className="text-white text-sm">{user.displayName || user.email}</span>
+                </div>
+                <Button
+                  onClick={onSignOut}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-300 hover:text-white"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-2 mb-4">
+              <Button
+                onClick={onSignIn}
+                variant="outline"
+                size="sm"
+                className="border-purple-500 text-purple-300 hover:bg-purple-500/10"
+              >
+                Sign In
+              </Button>
+              <Button
+                onClick={onSignUp}
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                Sign Up
+              </Button>
+            </div>
+          )}
+          
           <div className="inline-flex items-center gap-2 bg-purple-500/20 text-purple-300 px-4 py-2 rounded-full text-sm mb-6">
             <Zap className="w-4 h-4" />
             Revolutionary Live Streaming
@@ -200,7 +382,7 @@ function LandingPage({ setCurrentView, setSessionData }: LandingPageProps) {
             <Button
               size="lg"
               className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 disabled:opacity-50"
-              onClick={createSession}
+              onClick={handleCreateSession}
               disabled={isCreating}
             >
               {isCreating ? (

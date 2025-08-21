@@ -1,145 +1,201 @@
+import SimplePeer from 'simple-peer';
+
+export interface PeerConnection {
+  userId: string;
+  peer: SimplePeer.Instance;
+  stream?: MediaStream;
+}
+
 export class WebRTCService {
-  private peerConnection: RTCPeerConnection | null = null
-  private localStream: MediaStream | null = null
-  private remoteStream: MediaStream | null = null
-  private sessionId: string
-  private viewerId: string
+  private peers: Map<string, PeerConnection> = new Map();
+  private localStream: MediaStream | null = null;
+  private onPeerConnected?: (userId: string, stream: MediaStream) => void;
+  private onPeerDisconnected?: (userId: string) => void;
+  private onSignalData?: (userId: string, data: any) => void;
 
-  constructor(sessionId: string, viewerId: string) {
-    this.sessionId = sessionId
-    this.viewerId = viewerId
+  constructor(
+    onPeerConnected?: (userId: string, stream: MediaStream) => void,
+    onPeerDisconnected?: (userId: string) => void,
+    onSignalData?: (userId: string, data: any) => void
+  ) {
+    this.onPeerConnected = onPeerConnected;
+    this.onPeerDisconnected = onPeerDisconnected;
+    this.onSignalData = onSignalData;
   }
 
-  async initialize() {
-    const configuration: RTCConfiguration = {
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+  async getLocalStream(): Promise<MediaStream> {
+    if (this.localStream) {
+      return this.localStream;
     }
 
-    this.peerConnection = new RTCPeerConnection(configuration)
-
-    // Handle ICE candidates
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.sendSignalingMessage({
-          type: "ice-candidate",
-          candidate: event.candidate,
-        })
-      }
-    }
-
-    // Handle remote stream
-    this.peerConnection.ontrack = (event) => {
-      this.remoteStream = event.streams[0]
-      this.onRemoteStream?.(this.remoteStream)
-    }
-
-    // Handle connection state changes
-    this.peerConnection.onconnectionstatechange = () => {
-      console.log("Connection state:", this.peerConnection?.connectionState)
-      this.onConnectionStateChange?.(this.peerConnection?.connectionState || "closed")
-    }
-  }
-
-  async requestMicrophone(): Promise<boolean> {
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000,
+          autoGainControl: true
         },
-      })
+        video: false
+      });
+      return this.localStream;
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      throw new Error('Failed to access microphone. Please check your permissions.');
+    }
+  }
 
-      // Add audio track to peer connection
-      if (this.peerConnection && this.localStream) {
-        this.localStream.getTracks().forEach((track) => {
-          this.peerConnection!.addTrack(track, this.localStream!)
-        })
+  async createPeerConnection(userId: string, initiator: boolean = false): Promise<void> {
+    try {
+      const localStream = await this.getLocalStream();
+      
+      const peer = new SimplePeer({
+        initiator,
+        trickle: false,
+        stream: localStream
+      });
+
+      // Handle incoming signal data
+      peer.on('signal', (data) => {
+        if (this.onSignalData) {
+          this.onSignalData(userId, data);
+        }
+      });
+
+      // Handle successful connection
+      peer.on('connect', () => {
+        console.log(`Connected to peer: ${userId}`);
+      });
+
+      // Handle incoming stream
+      peer.on('stream', (stream) => {
+        console.log(`Received stream from peer: ${userId}`);
+        const peerConnection = this.peers.get(userId);
+        if (peerConnection) {
+          peerConnection.stream = stream;
+        }
+        if (this.onPeerConnected) {
+          this.onPeerConnected(userId, stream);
+        }
+      });
+
+      // Handle peer disconnection
+      peer.on('close', () => {
+        console.log(`Peer disconnected: ${userId}`);
+        this.removePeer(userId);
+        if (this.onPeerDisconnected) {
+          this.onPeerDisconnected(userId);
+        }
+      });
+
+      // Handle errors
+      peer.on('error', (error) => {
+        console.error(`Peer error for ${userId}:`, error);
+        this.removePeer(userId);
+        if (this.onPeerDisconnected) {
+          this.onPeerDisconnected(userId);
+        }
+      });
+
+      this.peers.set(userId, { userId, peer });
+    } catch (error) {
+      console.error('Error creating peer connection:', error);
+      throw error;
+    }
+  }
+
+  handleSignalData(userId: string, data: any): void {
+    const peerConnection = this.peers.get(userId);
+    if (peerConnection) {
+      try {
+        peerConnection.peer.signal(data);
+      } catch (error) {
+        console.error(`Error handling signal data for ${userId}:`, error);
       }
-
-      return true
-    } catch (error) {
-      console.error("Microphone access denied:", error)
-      return false
     }
   }
 
-  async createOffer(): Promise<RTCSessionDescriptionInit | null> {
-    if (!this.peerConnection) return null
-
-    try {
-      const offer = await this.peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: false,
-      })
-
-      await this.peerConnection.setLocalDescription(offer)
-      return offer
-    } catch (error) {
-      console.error("Failed to create offer:", error)
-      return null
+  removePeer(userId: string): void {
+    const peerConnection = this.peers.get(userId);
+    if (peerConnection) {
+      try {
+        peerConnection.peer.destroy();
+      } catch (error) {
+        console.error(`Error destroying peer ${userId}:`, error);
+      }
+      this.peers.delete(userId);
     }
   }
 
-  async handleAnswer(answer: RTCSessionDescriptionInit) {
-    if (!this.peerConnection) return
-
-    try {
-      await this.peerConnection.setRemoteDescription(answer)
-    } catch (error) {
-      console.error("Failed to handle answer:", error)
-    }
-  }
-
-  async handleIceCandidate(candidate: RTCIceCandidateInit) {
-    if (!this.peerConnection) return
-
-    try {
-      await this.peerConnection.addIceCandidate(candidate)
-    } catch (error) {
-      console.error("Failed to add ICE candidate:", error)
-    }
-  }
-
-  muteMicrophone(muted: boolean) {
+  muteLocalAudio(muted: boolean): void {
     if (this.localStream) {
-      this.localStream.getAudioTracks().forEach((track) => {
-        track.enabled = !muted
-      })
+      this.localStream.getAudioTracks().forEach(track => {
+        track.enabled = !muted;
+      });
     }
   }
 
-  disconnect() {
+  isLocalAudioMuted(): boolean {
     if (this.localStream) {
-      this.localStream.getTracks().forEach((track) => track.stop())
-      this.localStream = null
+      const audioTracks = this.localStream.getAudioTracks();
+      return audioTracks.length > 0 ? !audioTracks[0].enabled : true;
     }
-
-    if (this.peerConnection) {
-      this.peerConnection.close()
-      this.peerConnection = null
-    }
+    return true;
   }
 
-  private async sendSignalingMessage(message: any) {
-    // In a real implementation, this would send via WebSocket
+  // Analyze audio levels for speaking detection
+  analyzeAudioLevel(callback: (level: number) => void): void {
+    if (!this.localStream) return;
+
     try {
-      await fetch("/api/audio/signaling", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: this.sessionId,
-          viewerId: this.viewerId,
-          message,
-        }),
-      })
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(this.localStream);
+      
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      microphone.connect(analyser);
+
+      const analyze = () => {
+        analyser.getByteFrequencyData(dataArray);
+        
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        
+        const average = sum / bufferLength;
+        callback(average);
+        
+        requestAnimationFrame(analyze);
+      };
+
+      analyze();
     } catch (error) {
-      console.error("Failed to send signaling message:", error)
+      console.error('Error analyzing audio level:', error);
     }
   }
 
-  // Event handlers (to be set by the consumer)
-  onRemoteStream?: (stream: MediaStream) => void
-  onConnectionStateChange?: (state: RTCPeerConnectionState) => void
+  cleanup(): void {
+    // Close all peer connections
+    this.peers.forEach(peerConnection => {
+      try {
+        peerConnection.peer.destroy();
+      } catch (error) {
+        console.error('Error destroying peer:', error);
+      }
+    });
+    this.peers.clear();
+
+    // Stop local stream
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream = null;
+    }
+  }
+
+  getPeers(): Map<string, PeerConnection> {
+    return this.peers;
+  }
 }
