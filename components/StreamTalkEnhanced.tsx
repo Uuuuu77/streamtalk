@@ -28,11 +28,14 @@ import {
   User
 } from 'lucide-react';
 
+// Components
+import LandingPage from '@/components/LandingPage';
+import { AuthForm } from '@/components/auth/AuthForm';
+
 // Firebase and service imports
 import { useAuth } from '@/lib/auth';
 import { firestoreService, type Room, type Participant } from '@/lib/firestore';
 import { WebRTCService } from '@/lib/webrtc';
-import { AuthForm } from '@/components/auth/AuthForm';
 import { toast } from '@/hooks/use-toast';
 
 // Type definitions
@@ -73,11 +76,6 @@ interface CurrentSpeaker {
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 type QueueStatus = 'not-joined' | 'joining' | 'in-queue' | 'selected' | 'speaking';
 
-interface LandingPageProps {
-  setCurrentView: (view: string) => void;
-  setSessionData: (data: SessionData | null) => void;
-}
-
 interface StreamerDashboardProps {
   sessionData: SessionData;
   setCurrentView: (view: string) => void;
@@ -92,12 +90,6 @@ interface ViewerInterfaceProps {
   setConnectionStatus: (status: ConnectionStatus) => void;
   audioPermission: boolean;
   setAudioPermission: (permission: boolean) => void;
-}
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
 }
 
 interface ConnectionStatusProps {
@@ -183,17 +175,10 @@ export default function StreamTalkEnhanced() {
         <LandingPage 
           setCurrentView={setCurrentView} 
           setSessionData={setSessionData}
-          user={user}
-          onStreamerAction={handleStreamerAction}
-          onSignIn={() => {
-            setAuthMode('signin');
+          onShowAuth={(mode) => {
+            setAuthMode(mode);
             setShowAuthForm(true);
           }}
-          onSignUp={() => {
-            setAuthMode('signup');
-            setShowAuthForm(true);
-          }}
-          onSignOut={logout}
         />
         {showAuthForm && (
           <AuthForm
@@ -238,17 +223,10 @@ export default function StreamTalkEnhanced() {
       <LandingPage 
         setCurrentView={setCurrentView} 
         setSessionData={setSessionData}
-        user={user}
-        onStreamerAction={handleStreamerAction}
-        onSignIn={() => {
-          setAuthMode('signin');
+        onShowAuth={(mode) => {
+          setAuthMode(mode);
           setShowAuthForm(true);
         }}
-        onSignUp={() => {
-          setAuthMode('signup');
-          setShowAuthForm(true);
-        }}
-        onSignOut={logout}
       />
       {showAuthForm && (
         <AuthForm
@@ -258,216 +236,6 @@ export default function StreamTalkEnhanced() {
         />
       )}
     </>
-  );
-}
-
-// Landing Page Component
-function LandingPage({ 
-  setCurrentView, 
-  setSessionData, 
-  user, 
-  onStreamerAction, 
-  onSignIn, 
-  onSignUp, 
-  onSignOut 
-}: LandingPageProps & {
-  user: any;
-  onStreamerAction: () => void;
-  onSignIn: () => void;
-  onSignUp: () => void;
-  onSignOut: () => void;
-}) {
-  const [isCreating, setIsCreating] = useState(false);
-  const [joinCode, setJoinCode] = useState('');
-  
-  const handleCreateSession = async () => {
-    setIsCreating(true);
-    await onStreamerAction();
-    setIsCreating(false);
-  };
-  
-  const joinSession = async () => {
-    if (!joinCode.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a session ID or link',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
-    const sessionId = joinCode.includes('/join/') ? 
-      joinCode.split('/join/')[1] : joinCode.trim();
-    
-    try {
-      // Check if room exists
-      const room = await firestoreService.getRoom(sessionId);
-      if (!room) {
-        throw new Error('Session not found');
-      }
-      
-      setSessionData({
-        id: sessionId,
-        title: room.title,
-        isViewer: true
-      });
-      setCurrentView('viewer');
-    } catch (error) {
-      console.error('Error joining session:', error);
-      toast({
-        title: 'Error',
-        description: 'Session not found. Please check the ID and try again.',
-        variant: 'destructive'
-      });
-    }
-  };
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-4 py-16">
-        {/* Header with Auth */}
-        <div className="text-center mb-16">
-          {user ? (
-            <div className="flex justify-end mb-4">
-              <div className="flex items-center gap-4 bg-slate-800/50 rounded-lg px-4 py-2">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-purple-400" />
-                  <span className="text-white text-sm">{user.displayName || user.email}</span>
-                </div>
-                <Button
-                  onClick={onSignOut}
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-300 hover:text-white"
-                >
-                  <LogOut className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex justify-end gap-2 mb-4">
-              <Button
-                onClick={onSignIn}
-                variant="outline"
-                size="sm"
-                className="border-purple-500 text-purple-300 hover:bg-purple-500/10"
-              >
-                Sign In
-              </Button>
-              <Button
-                onClick={onSignUp}
-                size="sm"
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                Sign Up
-              </Button>
-            </div>
-          )}
-          
-          <div className="inline-flex items-center gap-2 bg-purple-500/20 text-purple-300 px-4 py-2 rounded-full text-sm mb-6">
-            <Zap className="w-4 h-4" />
-            Revolutionary Live Streaming
-          </div>
-          
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-            Stream<span className="text-purple-400">Talk</span>
-          </h1>
-          
-          <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-            Transform your one-way livestreams into dynamic, two-way audio conversations. 
-            Give every viewer a voice with real-time audio interaction.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button
-              size="lg"
-              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 disabled:opacity-50"
-              onClick={handleCreateSession}
-              disabled={isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating Session...
-                </>
-              ) : (
-                <>
-                  <Mic className="w-5 h-5 mr-2" />
-                  Start Streaming
-                </>
-              )}
-            </Button>
-          </div>
-          
-          {/* Join Session Section */}
-          <Card className="bg-slate-800/50 border-slate-700 max-w-md mx-auto">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-400" />
-                Join Stream
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Input
-                value={joinCode}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setJoinCode(e.target.value)}
-                placeholder="Enter session ID or paste link"
-                className="bg-slate-900 border-slate-600 text-white placeholder:text-gray-500"
-                onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && joinSession()}
-              />
-              <Button
-                onClick={joinSession}
-                disabled={!joinCode.trim()}
-                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Join Queue
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
-          <FeatureCard
-            icon={<Mic className="w-5 h-5 text-purple-400" />}
-            title="Real-Time Audio"
-            description="Ultra-low latency WebRTC audio with automatic queue management and fair selection."
-          />
-          <FeatureCard
-            icon={<Users className="w-5 h-5 text-purple-400" />}
-            title="Smart Queue System"
-            description="Intelligent viewer queue with random selection, priority management, and real-time updates."
-          />
-          <FeatureCard
-            icon={<Share2 className="w-5 h-5 text-purple-400" />}
-            title="Universal Integration"
-            description="Works with any streaming platform - TikTok, Instagram, YouTube, Twitch."
-          />
-        </div>
-        
-        {/* Live Demo Section */}
-        <div className="text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-8">Live Demo</h2>
-          <div className="bg-slate-800/50 rounded-lg p-8 max-w-4xl mx-auto">
-            <div className="flex justify-center gap-4 mb-4">
-              <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                Live Audio Queue
-              </Badge>
-              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
-                <Users className="w-3 h-3 mr-1" />
-                3 Viewers Waiting
-              </Badge>
-              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-                <Activity className="w-3 h-3 mr-1" />
-                &lt; 150ms Latency
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1194,22 +962,6 @@ function ViewerInterface({ sessionData, setCurrentView, connectionStatus, setCon
 }
 
 // Helper Components
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  return (
-    <Card className="bg-slate-800/50 border-slate-700 hover:bg-slate-800/70 transition-colors">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-gray-300">{description}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 function ConnectionStatus({ status }: ConnectionStatusProps) {
   const statusConfig = {
     connecting: { 
