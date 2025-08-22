@@ -193,6 +193,7 @@ export default function StreamTalkEnhanced() {
       <>
         <LandingPage 
           setCurrentView={setCurrentView}
+          setSessionData={setSessionData}
         />
         {showAuthForm && (
           <AuthForm
@@ -236,6 +237,7 @@ export default function StreamTalkEnhanced() {
     <>
       <LandingPage 
         setCurrentView={setCurrentView}
+        setSessionData={setSessionData}
       />
       {showAuthForm && (
         <AuthForm

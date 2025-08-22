@@ -15,14 +15,80 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { AuthForm } from '@/components/auth/AuthForm';
+import { toast } from '@/hooks/use-toast';
+import { firestoreService } from '@/lib/firestore';
 
 interface LandingPageProps {
   setCurrentView: (view: string) => void;
+  setSessionData: (data: any) => void;
 }
 
-export default function LandingPage({ setCurrentView }: LandingPageProps) {
+export default function LandingPage({ setCurrentView, setSessionData }: LandingPageProps) {
   const [showAuth, setShowAuth] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
   const { user } = useAuth();
+
+  const handleStartStreaming = async () => {
+    if (!user) {
+      setShowAuth(true);
+      return;
+    }
+    
+    setIsCreatingSession(true);
+    
+    try {
+      const room = {
+        hostId: user.uid,
+        title: `${user.displayName || user.email?.split('@')[0] || 'Anonymous'}'s Live Stream`,
+        description: 'Live audio interaction session',
+        isActive: true,
+        maxParticipants: 50,
+        speakingTimeLimit: 45,
+        currentSpeakerId: null,
+        participantQueue: []
+      };
+      
+      const roomId = await firestoreService.createRoom(room);
+      const joinLink = `${window.location.origin}/join/${roomId}`;
+      
+      const session = {
+        id: roomId,
+        title: room.title,
+        joinLink,
+        maxSpeakingTime: room.speakingTimeLimit,
+        createdAt: new Date(),
+        viewerCount: 0,
+        activeViewers: [],
+        hostId: user.uid
+      };
+      
+      setSessionData(session);
+      setCurrentView('streamer');
+      
+      toast({
+        title: 'Stream Started! 🎉',
+        description: 'Your live session is now active!',
+        variant: 'default'
+      });
+    } catch (error) {
+      console.error('Error creating session:', error);
+      toast({
+        title: 'Failed to Start Stream',
+        description: 'Could not create your session. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCreatingSession(false);
+    }
+  };
+
+  const handleJoinSession = () => {
+    if (user) {
+      setCurrentView('dashboard');
+    } else {
+      setShowAuth(true);
+    }
+  };
 
   const features = [
     {
@@ -148,16 +214,26 @@ export default function LandingPage({ setCurrentView }: LandingPageProps) {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button
-                onClick={() => user ? setCurrentView('dashboard') : setShowAuth(true)}
+                onClick={handleStartStreaming}
+                disabled={isCreatingSession}
                 size="lg"
-                className="bg-purple-600 hover:bg-purple-700 text-lg px-8 py-4 h-auto min-w-[200px]"
+                className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 disabled:opacity-50 text-lg px-8 py-4 h-auto min-w-[200px]"
               >
-                <PlayCircle className="w-5 h-5 mr-2" />
-                Start Streaming
+                {isCreatingSession ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Creating Stream...
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="w-5 h-5 mr-2" />
+                    Start Streaming
+                  </>
+                )}
               </Button>
               
               <Button
-                onClick={() => user ? setCurrentView('dashboard') : setShowAuth(true)}
+                onClick={handleJoinSession}
                 variant="outline"
                 size="lg"
                 className="border-purple-400 text-purple-400 hover:bg-purple-400/10 text-lg px-8 py-4 h-auto min-w-[200px]"
