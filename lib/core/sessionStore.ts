@@ -44,6 +44,10 @@ class SessionStore {
     this.sessions.set(id, existing);
     return existing;
   }
+
+  delete(id: string): boolean {
+    return this.sessions.delete(id);
+  }
 }
 
 export const sessionStore = new SessionStore();

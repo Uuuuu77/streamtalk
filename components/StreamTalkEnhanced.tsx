@@ -373,51 +373,52 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
-          <div>
+        {/* Header - Mobile-First Responsive */}
+        <div className="flex flex-col lg:flex-row justify-between items-start gap-4 mb-6 sm:mb-8">
+          <div className="w-full lg:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentView('landing')}
-              className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent mb-4"
+              className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent mb-3 sm:mb-4 min-h-[44px]"
             >
               ← Back to Home
             </Button>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              <Crown className="w-6 h-6 text-yellow-400 inline mr-2" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+              <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400 inline mr-2" />
               Streamer Dashboard
             </h1>
-            <p className="text-gray-300">{sessionData?.title}</p>
+            <p className="text-gray-300 text-sm sm:text-base">{sessionData?.title}</p>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
             <ConnectionStatus status={connectionStatus} />
             <Button
               variant="outline"
               onClick={() => setShowSettings(!showSettings)}
-              className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent"
+              className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent min-h-[44px]"
             >
               <Settings className="w-4 h-4" />
+              <span className="ml-2 sm:hidden">Settings</span>
             </Button>
           </div>
         </div>
         
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Current Speaker */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+          {/* Main Content - Mobile-First Layout */}
+          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+            {/* Current Speaker - Responsive Design */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Mic className="w-5 h-5 text-purple-400" />
+                <CardTitle className="text-white flex items-center gap-2 text-lg sm:text-xl">
+                  <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                   Currently Speaking
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {currentSpeaker ? (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
                           <span className="text-white font-bold">
@@ -425,13 +426,13 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
                           </span>
                         </div>
                         <div>
-                          <div className="text-white font-medium">{currentSpeaker.name}</div>
-                          <div className="text-gray-400 text-sm">Speaking now</div>
+                          <div className="text-white font-medium text-sm sm:text-base">{currentSpeaker.name}</div>
+                          <div className="text-gray-400 text-xs sm:text-sm">Speaking now</div>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
                           <Activity className="w-3 h-3 mr-1" />
                           Live
                         </Badge>
@@ -439,7 +440,7 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
                           onClick={endSpeaking}
                           variant="outline"
                           size="sm"
-                          className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                          className="border-red-500/50 text-red-400 hover:bg-red-500/10 min-h-[40px] w-full sm:w-auto"
                         >
                           End Speaking
                         </Button>
@@ -458,14 +459,14 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
                       />
                     </div>
                     
-                    {/* Audio Visualizer */}
-                    <div className="flex items-center justify-center gap-1 py-4">
-                      {[...Array(20)].map((_, i) => (
+                    {/* Audio Visualizer - Responsive */}
+                    <div className="flex items-center justify-center gap-1 py-3 sm:py-4 overflow-hidden">
+                      {[...Array(15)].map((_, i) => (
                         <div
                           key={i}
                           className="w-1 bg-green-400 rounded-full animate-pulse"
                           style={{
-                            height: `${Math.random() * 30 + 10}px`,
+                            height: `${Math.random() * 20 + 10}px`,
                             animationDelay: `${i * 0.1}s`
                           }}
                         />
@@ -473,12 +474,12 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <MicOff className="w-8 h-8 text-gray-400" />
+                  <div className="text-center py-6 sm:py-8">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                      <MicOff className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400" />
                     </div>
-                    <p className="text-gray-400">No one is currently speaking</p>
-                    <p className="text-gray-500 text-sm">Select a viewer from the queue to start</p>
+                    <p className="text-gray-400 text-sm sm:text-base">No one is currently speaking</p>
+                    <p className="text-gray-500 text-xs sm:text-sm">Select a viewer from the queue to start</p>
                   </div>
                 )}
               </CardContent>
@@ -724,35 +725,35 @@ function ViewerInterface({ sessionData, setCurrentView, connectionStatus, setCon
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        {/* Header */}
-        <div className="text-center mb-8">
+      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-2xl">
+        {/* Header - Mobile-First Responsive */}
+        <div className="text-center mb-6 sm:mb-8">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentView('landing')}
-            className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent mb-4"
+            className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent mb-3 sm:mb-4 min-h-[44px] w-full sm:w-auto"
           >
             ← Back to Home
           </Button>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            <Users className="w-6 h-6 text-purple-400 inline mr-2" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400 inline mr-2" />
             StreamTalk Viewer
           </h1>
-          <p className="text-gray-300">{sessionData?.title}</p>
+          <p className="text-gray-300 text-sm sm:text-base px-4 sm:px-0">{sessionData?.title}</p>
         </div>
         
-        <div className="space-y-6">
-          {/* Connection Status */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Connection Status - Mobile-Optimized */}
           <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
                   <ConnectionStatus status={connectionStatus} />
-                  <span className="text-white">Session Connection</span>
+                  <span className="text-white text-sm sm:text-base">Session Connection</span>
                 </div>
                 {audioPermission && (
-                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs sm:text-sm w-fit">
                     <Mic className="w-3 h-3 mr-1" />
                     Mic Ready
                   </Badge>

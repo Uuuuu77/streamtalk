@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { queueManager } from '@/lib/core/queueManager';
 import { sessionStore } from '@/lib/core/sessionStore';
 
-export async function POST(req: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ sessionId: string }> }
+) {
   try {
+    const params = await context.params;
     const { viewerId, viewerName, audioReady } = await req.json();
     if (!viewerId || !viewerName) {
       return NextResponse.json({ success: false, error: 'viewerId & viewerName required' }, { status: 400 });

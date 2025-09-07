@@ -5,54 +5,47 @@ import { sessionStore } from '@/lib/core/sessionStore';
 // Join queue
 export async function POST(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const params = await context.params;
     const body = await request.json();
     
     // Verify session exists
     const session = sessionStore.get(params.sessionId);
     if (!session) {
       return NextResponse.json(
-        { error: 'Session not found' },
+        { success: false, error: 'Session not found' },
         { status: 404 }
       );
     }
 
-    if (session.status !== 'active') {
+    // Validate request body
+    const { viewerId, viewerName, audioReady } = body;
+    if (!viewerId || !viewerName) {
       return NextResponse.json(
-        { error: 'Session is not active' },
+        { success: false, error: 'viewerId and viewerName are required' },
         { status: 400 }
       );
     }
 
-    // Join queue
+    // Join the queue
     const queueEntry = queueManager.join({
       sessionId: params.sessionId,
-      viewerId: body.viewerId || `viewer-${Date.now()}`,
-      viewerName: body.viewerName || 'Anonymous',
-      audioReady: body.audioReady || false,
+      viewerId,
+      viewerName,
+      audioReady: audioReady || false
     });
 
     return NextResponse.json({
       success: true,
-      queueEntry: {
-        ...queueEntry,
-        sessionId: params.sessionId,
-      }
+      queueEntry
     });
-  } catch (error: any) {
+
+  } catch (error) {
     console.error('Error joining queue:', error);
-    
-    if (error.message === 'Already in queue') {
-      return NextResponse.json(
-        { error: 'Already in queue' },
-        { status: 409 }
-      );
-    }
-    
     return NextResponse.json(
-      { error: 'Failed to join queue' },
+      { success: false, error: 'Failed to join queue' },
       { status: 500 }
     );
   }
@@ -60,59 +53,74 @@ export async function POST(
 
 // Get queue status
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  _request: NextRequest,
+  context: { params: Promise<{ sessionId: string }> }
 ) {
   try {
+    const params = await context.params;
+    // Verify session exists
+    const session = sessionStore.get(params.sessionId);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Session not found' },
+        { status: 404 }
+      );
+    }
+
     const queue = queueManager.getWaiting(params.sessionId);
-    
     return NextResponse.json({
       success: true,
-      queue: queue,
-      totalWaiting: queue.length,
+      queue
     });
+
   } catch (error) {
-    console.error('Error fetching queue:', error);
+    console.error('Error getting queue:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch queue' },
+      { success: false, error: 'Failed to get queue' },
       { status: 500 }
     );
   }
 }
 
-// Leave queue
+// Remove from queue
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  context: { params: Promise<{ sessionId: string }> }
 ) {
   try {
-    const { searchParams } = new URL(request.url);
-    const viewerId = searchParams.get('viewerId');
+    const params = await context.params;
+    const body = await request.json();
     
-    if (!viewerId) {
+    // Verify session exists
+    const session = sessionStore.get(params.sessionId);
+    if (!session) {
       return NextResponse.json(
-        { error: 'viewerId is required' },
-        { status: 400 }
-      );
-    }
-
-    const removed = queueManager.leave(params.sessionId, viewerId);
-    
-    if (!removed) {
-      return NextResponse.json(
-        { error: 'Not in queue' },
+        { success: false, error: 'Session not found' },
         { status: 404 }
       );
     }
 
+    // Validate request body
+    const { viewerId } = body;
+    if (!viewerId) {
+      return NextResponse.json(
+        { success: false, error: 'viewerId is required' },
+        { status: 400 }
+      );
+    }
+
+    // Remove from queue
+    const removed = queueManager.leave(params.sessionId, viewerId);
+
     return NextResponse.json({
       success: true,
-      message: 'Left queue successfully'
+      removed
     });
+
   } catch (error) {
     console.error('Error leaving queue:', error);
     return NextResponse.json(
-      { error: 'Failed to leave queue' },
+      { success: false, error: 'Failed to leave queue' },
       { status: 500 }
     );
   }

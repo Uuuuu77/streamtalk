@@ -8,15 +8,16 @@ import { Progress } from "@/components/ui/progress"
 import { Mic, MicOff, Volume2, VolumeX, Users, Clock, Wifi, WifiOff, CheckCircle, AlertCircle } from "lucide-react"
 
 interface ViewerPageProps {
-  params: {
+  params: Promise<{
     sessionId: string
-  }
+  }>
 }
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected"
 
 export default function ViewerPage({ params }: ViewerPageProps) {
   const [mounted, setMounted] = useState(false)
+  const [sessionId, setSessionId] = useState<string>('')
   const [isInQueue, setIsInQueue] = useState(false)
   const [queuePosition, setQueuePosition] = useState<number | null>(null)
   const [isSelected, setIsSelected] = useState(false)
@@ -28,16 +29,24 @@ export default function ViewerPage({ params }: ViewerPageProps) {
   const [estimatedWait, setEstimatedWait] = useState<string>("Calculating...")
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
-  // Ensure component is mounted
+  // Load session ID from params
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    params.then(p => {
+      setSessionId(p.sessionId)
+      setMounted(true)
+    })
+  }, [params])
 
   // Show notification helper
   const showNotification = useCallback((type: "success" | "error", message: string) => {
     setNotification({ type, message })
     setTimeout(() => setNotification(null), 5000)
   }, [])
+
+  // Don't render until we have the session ID
+  if (!mounted || !sessionId) {
+    return <div>Loading...</div>
+  }
 
   // Simulate connection
   useEffect(() => {
@@ -178,7 +187,7 @@ export default function ViewerPage({ params }: ViewerPageProps) {
           <h1 className="text-3xl font-bold text-white mb-2">
             Stream<span className="text-purple-400">Talk</span> Viewer
           </h1>
-          <p className="text-gray-300">Session: {params.sessionId}</p>
+          <p className="text-gray-300">Session: {sessionId}</p>
           <div className="flex items-center justify-center gap-2 mt-2">
             <ConnectionIcon status={connectionStatus} />
             <ConnectionBadge status={connectionStatus} />

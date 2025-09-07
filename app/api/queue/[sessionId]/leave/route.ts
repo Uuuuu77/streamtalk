@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queueManager } from '@/lib/core/queueManager';
 
-export async function POST(req: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ sessionId: string }> }
+) {
   try {
+    const params = await context.params;
     const { viewerId } = await req.json();
     if (!viewerId) return NextResponse.json({ success: false, error: 'viewerId required' }, { status: 400 });
     const changed = queueManager.leave(params.sessionId, viewerId);
