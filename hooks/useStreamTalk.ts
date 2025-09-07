@@ -19,8 +19,30 @@ export function useStreamTalk({ sessionId, viewerId, role }: UseStreamTalkProps)
   const [micEnabled, setMicEnabled] = useState(false)
   const [audioReady, setAudioReady] = useState(false)
 
-  const [webrtc] = useState(() => new WebRTCService(sessionId, viewerId))
   const [websocket] = useState(() => new WebSocketService(sessionId, viewerId))
+  
+  const [webrtc] = useState(() => new WebRTCService(
+    // onPeerConnected
+    (userId: string, stream: MediaStream) => {
+      console.log('Peer connected:', userId);
+      // Handle peer connection
+    },
+    // onPeerDisconnected  
+    (userId: string) => {
+      console.log('Peer disconnected:', userId);
+      // Handle peer disconnection
+    },
+    // onSignalData
+    (userId: string, data: any) => {
+      console.log('Signal data:', userId, data);
+      // Handle signal data through websocket
+      websocket.send({
+        type: 'webrtc-signal',
+        targetUserId: userId,
+        signalData: data
+      });
+    }
+  ))
 
   useEffect(() => {
     // Initialize WebSocket
@@ -29,40 +51,33 @@ export function useStreamTalk({ sessionId, viewerId, role }: UseStreamTalkProps)
     }
 
     websocket.onQueueUpdate = (data) => {
+      setIsInQueue(data.isInQueue)
       setQueuePosition(data.position)
-    }
-
-    websocket.onViewerSelected = (data) => {
-      if (data.viewerId === viewerId) {
-        setIsSelected(true)
-        setIsInQueue(false)
-        setSpeakingTimeLeft(data.speakingTime || 45)
-      }
-    }
-
-    websocket.onSpeakingEnded = (data) => {
-      if (data.viewerId === viewerId) {
-        setIsSelected(false)
-        setSpeakingTimeLeft(0)
-        setMicEnabled(false)
-      }
     }
 
     websocket.connect()
 
-    // Initialize WebRTC
-    webrtc.initialize()
-
     return () => {
+      webrtc.cleanup()
       websocket.disconnect()
-      webrtc.disconnect()
     }
-  }, [sessionId, viewerId, websocket, webrtc])
+  }, [websocket, webrtc])
+
+  const enableMicrophone = useCallback(async (): Promise<boolean> => {
+    try {
+      const stream = await webrtc.getLocalStream()
+      setAudioReady(!!stream)
+      return true
+    } catch (error) {
+      console.error("Failed to enable microphone:", error)
+      return false
+    }
+  }, [webrtc])
 
   const joinQueue = useCallback(async () => {
     try {
-      const hasAudio = await webrtc.requestMicrophone()
-      if (!hasAudio) {
+      const stream = await webrtc.getLocalStream()
+      if (!stream) {
         throw new Error("Microphone access required")
       }
 
@@ -102,7 +117,7 @@ export function useStreamTalk({ sessionId, viewerId, role }: UseStreamTalkProps)
       setIsInQueue(false)
       setQueuePosition(null)
       setAudioReady(false)
-      webrtc.disconnect()
+      webrtc.cleanup()
     } catch (error) {
       console.error("Failed to leave queue:", error)
       throw error
@@ -113,7 +128,7 @@ export function useStreamTalk({ sessionId, viewerId, role }: UseStreamTalkProps)
     if (isSelected) {
       const newState = !micEnabled
       setMicEnabled(newState)
-      webrtc.muteMicrophone(!newState)
+      webrtc.muteLocalAudio(!newState)
     }
   }, [isSelected, micEnabled, webrtc])
 
