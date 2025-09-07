@@ -1,216 +1,99 @@
-# StreamTalk - Interactive Live Streaming Platform
+# StreamTalk
+> Transform one-way livestreams into dynamic, two-way audio conversations
 
-Transform your one-way livestreams into dynamic, two-way audio conversations. Give every viewer a voice with real-time audio interaction.
+[![Built with Next.js](https://img.shields.io/badge/Next.js-15.2.4-black)](https://nextjs.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-Backend-orange)](https://firebase.google.com/)
+[![WebRTC](https://img.shields.io/badge/WebRTC-Audio-blue)](https://webrtc.org/)
 
-## 🚀 Features
+StreamTalk enables streamers to give their viewers a voice through real-time audio interaction. Works with any streaming platform - TikTok, Instagram, YouTube, Twitch.
 
-### Core Functionality
-- **Real-Time Audio Communication**: Ultra-low latency WebRTC peer-to-peer audio connections
-- **Smart Queue System**: Intelligent viewer queue with random selection and priority management
-- **Firebase Integration**: Scalable backend with authentication, real-time database, and hosting
-- **Email Authentication**: Secure user authentication with email verification
-- **Universal Platform Support**: Works with any streaming platform (TikTok, Instagram, YouTube, Twitch)
+## ✨ Key Features
 
-### Enhanced Features
-- **Live Participant Management**: Real-time viewer joining, queue position updates, and speaker selection
-- **Audio Controls**: Microphone muting, volume control, and speaking time limits
-- **Session Analytics**: Track viewer count, speaking statistics, and session duration
-- **Responsive Design**: Beautiful purple/slate theme that works on all devices
-- **WebRTC Signaling**: Firebase-powered signaling for reliable peer connections
+- **🎙️ Real-Time Audio**: Ultra-low latency WebRTC peer-to-peer connections
+- **📋 Smart Queue System**: Intelligent viewer management with priority controls
+- **🔐 Secure Authentication**: Email-based auth with Firebase
+- **📱 Mobile Optimized**: Responsive design that works everywhere
+- **🔧 Easy Integration**: Works alongside your existing streaming setup
 
-## 🛠 Technical Stack
-
-- **Frontend**: Next.js 15.2.4, React 19, TypeScript
-- **Styling**: Tailwind CSS with custom purple/slate design system
-- **UI Components**: Radix UI primitives with custom styling
-- **Backend**: Firebase (Authentication, Firestore, Hosting)
-- **Real-Time Audio**: WebRTC with simple-peer library
-- **State Management**: React Context for authentication
-- **Development**: ESLint, TypeScript, PostCSS
-
-## 📦 Installation
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or pnpm
-- Firebase project (for production)
+- Node.js 18+
+- Firebase project ([Create one here](https://console.firebase.google.com/))
 
-### 1. Clone and Install
+### Installation
+
 ```bash
-git clone <repository-url>
+# Clone repository
+git clone https://github.com/Uuuuu77/streamtalk.git
 cd streamtalk
+
+# Install dependencies
 npm install
-```
 
-### 2. Firebase Setup
-1. Create a new Firebase project at [Firebase Console](https://console.firebase.google.com)
-2. Enable Authentication with Email/Password provider
-3. Create a Firestore database
-4. Get your Firebase configuration from Project Settings
-
-### 3. Environment Configuration
-```bash
+# Set up environment
 cp .env.example .env.local
+# Edit .env.local with your Firebase config
+
+# Run development server
+npm run dev
 ```
 
-Edit `.env.local` with your Firebase credentials:
+### Firebase Setup
+
+1. Create a Firebase project
+2. Enable **Authentication** → Email/Password
+3. Create **Firestore Database** 
+4. Copy config to `.env.local`:
+
 ```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key-here
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
 NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef123456
-NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### 4. Run Development Server
-```bash
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000)
-
-## 🎯 Usage
+## 🎯 How It Works
 
 ### For Streamers
-1. **Sign Up/Sign In**: Create an account or sign in with email verification
-2. **Create Session**: Click "Start Streaming" to create a new interactive session
-3. **Share Link**: Share your unique session link with your audience
-4. **Manage Queue**: Select viewers from the queue to speak
-5. **Control Audio**: Manage speaking time, volume, and queue settings
+1. **Create Session** → Start hosting and get a shareable link
+2. **Share Link** → Give your audience the session ID or URL
+3. **Manage Queue** → Select viewers to speak, control timing
+4. **Interact Live** → Real-time audio conversation with your audience
 
-### For Viewers
-1. **Join Session**: Enter a session ID or paste the streamer's link
-2. **Grant Permissions**: Allow microphone access when prompted
-3. **Join Queue**: Enter your name and join the audio queue
-4. **Wait Your Turn**: See your position and estimated wait time
-5. **Speak**: When selected, you can speak directly to the streamer and audience
+### For Viewers  
+1. **Join Session** → Enter session ID or click streamer's link
+2. **Join Queue** → Request to speak and see your position
+3. **Get Selected** → Speak directly with streamer and audience
+4. **Engage** → Participate in dynamic conversations
 
-## 🏗 Project Structure
+## 🛠️ Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Framework** | Next.js 15.2.4, React 19, TypeScript |
+| **Styling** | Tailwind CSS, Radix UI |
+| **Backend** | Firebase (Auth, Firestore) |
+| **Audio** | WebRTC, simple-peer |
+| **Deployment** | Vercel |
+
+## 📁 Project Structure
 
 ```
 /app                    # Next.js app router
-  /api                  # API routes (legacy - moving to Firebase)
-  /join                 # Session joining pages
-  /streamer             # Streamer dashboard pages
-  /viewer               # Viewer interface pages
-  layout.tsx            # Root layout with AuthProvider
-  page.tsx              # Main landing page
-
+  /api                  # API routes
+  /join                 # Session joining
+  /streamer             # Host dashboard
+  /viewer               # Viewer interface
 /components             # React components
-  /auth                 # Authentication components
-    AuthForm.tsx        # Sign in/up modal
-  /ui                   # UI component library
-  StreamTalkEnhanced.tsx # Main application component
-
-/lib                    # Core services and utilities
-  auth.tsx              # Firebase authentication context
-  firebase.ts           # Firebase configuration
-  firestore.ts          # Firestore database service
-  webrtc.ts             # WebRTC service with simple-peer
-  utils.ts              # Utility functions
-
-/hooks                  # React hooks
-  use-toast.ts          # Toast notification hook
-  useStreamTalk.ts      # Main app state hook (legacy)
-
-/styles                 # Global styles
-/public                 # Static assets
-```
-
-## 🔧 Configuration
-
-### Firebase Security Rules
-```javascript
-// Firestore Rules
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Rooms
-    match /rooms/{roomId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && 
-        (request.auth.uid == resource.data.hostId || 
-         request.auth.uid in resource.data.participantIds);
-      allow delete: if request.auth != null && 
-        request.auth.uid == resource.data.hostId;
-    }
-    
-    // Participants
-    match /participants/{participantId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow delete: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-    }
-  }
-}
-```
-
-## 🌐 API Reference
-
-### Firebase Services
-
-#### `firestoreService`
-```typescript
-// Create a room
-const roomId = await firestoreService.createRoom(roomData);
-
-// Join a room as participant
-await firestoreService.addParticipant(roomId, participantData);
-
-// Listen to room updates
-const unsubscribe = firestoreService.subscribeToRoom(roomId, (room) => {
-  // Handle room updates
-});
-
-// Update participant status
-await firestoreService.updateParticipant(participantId, { status: 'speaking' });
-```
-
-#### `WebRTCService`
-```typescript
-// Initialize WebRTC service
-const webrtc = new WebRTCService(
-  onPeerConnected,
-  onPeerDisconnected,
-  onSignalData
-);
-
-// Create peer connection
-await webrtc.createPeerConnection(userId, isInitiator);
-
-// Handle signaling data
-webrtc.handleSignalData(userId, signalData);
-
-// Manage audio
-webrtc.muteLocalAudio(true);
-const isMuted = webrtc.isLocalAudioMuted();
-```
-
-## 🎨 Customization
-
-### Theme Colors
-The application uses a purple/slate color scheme defined in `tailwind.config.ts`:
-
-```typescript
-colors: {
-  purple: {
-    400: '#a855f7',
-    500: '#9333ea',
-    600: '#7c3aed',
-    700: '#6d28d9'
-  },
-  slate: {
-    700: '#334155',
-    800: '#1e293b',
-    900: '#0f172a'
-  }
-}
+  /auth                 # Authentication
+  /ui                   # UI library
+/lib                    # Core services
+  firebase.ts           # Firebase config
+  firestore.ts          # Database service  
+  webrtc.ts            # Audio service
 ```
 
 ## 🚀 Deployment
@@ -227,42 +110,59 @@ npm run build
 firebase deploy
 ```
 
-### Environment Variables for Production
-Set these in your deployment platform:
-- All `NEXT_PUBLIC_FIREBASE_*` variables
-- `NEXT_PUBLIC_APP_URL` (your production domain)
+## 🔧 Configuration
+
+### Firestore Security Rules
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.hostId;
+    }
+  }
+}
+```
+
+## 📱 Mobile Support
+
+StreamTalk is fully optimized for mobile devices with:
+- Touch-friendly 44px minimum button sizes
+- Safe area support for notched devices
+- Responsive grid layouts
+- Mobile-first design approach
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+**Authentication Issues**
+- Verify Firebase config in `.env.local`
+- Check if Email/Password provider is enabled
 
-**Authentication not working:**
-- Check Firebase project configuration
-- Verify environment variables
-- Ensure email/password provider is enabled
+**Audio Not Working**
+- Ensure microphone permissions are granted
+- Test in different browsers (Chrome recommended)
 
-**WebRTC connection fails:**
-- Check browser permissions for microphone
-- Verify STUN/TURN server configuration
-- Test with different browsers
-
-**Firebase connection issues:**
-- Verify API keys and project ID
+**Connection Problems**
 - Check Firestore security rules
-- Ensure Firebase project is active
-
-## 📝 License
-
-MIT License - See LICENSE file for details.
+- Verify Firebase project is active
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create feature branch: `git checkout -b feature-name`
+3. Commit changes: `git commit -m 'Add feature'`
+4. Push to branch: `git push origin feature-name`
+5. Submit pull request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-Built with ❤️ for the streaming community
+**Built with ❤️ for the streaming community**
+
+[Live Demo](https://streamtalk-dp82bxg7r-john-njugunas-projects.vercel.app) • [Report Bug](https://github.com/Uuuuu77/streamtalk/issues) • [Request Feature](https://github.com/Uuuuu77/streamtalk/issues)
