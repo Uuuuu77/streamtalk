@@ -1,287 +1,376 @@
-/**
+/**/**/**
+
  * Performance Optimization Utilities
- * Code splitting, lazy loading, memoization, and bundle optimization
+
+ * Code splitting, lazy loading, memoization, and bundle optimization * Performance Optimization Utilities * Performance Optimization Utilities
+
  */
 
-import React, { Suspense, lazy, memo, useMemo, useCallback, useRef, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+ * Code splitting, lazy loading, memoization, and bundle optimization * Code splitting, lazy loading, memoization, and bundle optimization
 
-// Loading skeleton components for better UX during code splitting
-export const ComponentSkeletons = {
-  Dashboard: () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-      <div className="container mx-auto">
-        <div className="animate-pulse">
-          <div className="h-8 bg-slate-700 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-                <div className="h-6 bg-slate-600 rounded w-3/4 mb-4"></div>
-                <div className="h-4 bg-slate-600 rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-slate-600 rounded w-2/3"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  ),
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 
-  StreamerDashboard: () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-      <div className="container mx-auto">
-        <div className="animate-pulse">
-          <div className="flex justify-between items-center mb-8">
-            <div className="h-8 bg-slate-700 rounded w-1/3"></div>
-            <div className="h-10 bg-slate-700 rounded w-24"></div>
-          </div>
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-                <div className="h-6 bg-slate-600 rounded w-1/2 mb-4"></div>
-                <div className="h-32 bg-slate-600 rounded"></div>
-              </div>
-              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-                <div className="h-6 bg-slate-600 rounded w-1/3 mb-4"></div>
-                <div className="space-y-3">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-16 bg-slate-600 rounded"></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-6">
-              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-                <div className="h-6 bg-slate-600 rounded w-2/3 mb-4"></div>
-                <div className="space-y-2">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-4 bg-slate-600 rounded"></div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  ),
+import dynamic from 'next/dynamic'; */ */
 
-  ViewerInterface: () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-      <div className="container mx-auto max-w-2xl">
-        <div className="animate-pulse">
-          <div className="text-center mb-8">
-            <div className="h-8 bg-slate-700 rounded w-1/2 mx-auto mb-4"></div>
-            <div className="h-4 bg-slate-600 rounded w-3/4 mx-auto"></div>
-          </div>
-          <div className="space-y-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-                <div className="h-6 bg-slate-600 rounded w-1/3 mb-4"></div>
-                <div className="h-20 bg-slate-600 rounded"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  ),
+import { ComponentSkeletons } from '@/components/loading-skeletons';
 
-  AuthForm: () => (
-    <div className="max-w-md w-full mx-4">
-      <div className="animate-pulse">
-        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-          <div className="h-6 bg-slate-600 rounded w-1/2 mb-6"></div>
-          <div className="space-y-4">
-            <div className="h-10 bg-slate-600 rounded"></div>
-            <div className="h-10 bg-slate-600 rounded"></div>
-            <div className="h-10 bg-slate-600 rounded"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  ),
 
-  Generic: () => (
-    <div className="flex items-center justify-center min-h-[200px]">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-    </div>
-  )
-} as const;
 
 // Dynamic imports with optimized loading
-export const DynamicComponents = {
+
+export const DynamicComponents = {import React, { useMemo, useCallback, useRef, useEffect } from 'react';import React, { useMemo, useCallback, useRef, useEffect } from 'react';
+
   // Heavy components that should be code-split
-  Dashboard: dynamic(() => import('@/components/Dashboard'), {
+
+  Dashboard: dynamic(() => import('@/components/Dashboard'), {import dynamic from 'next/dynamic';import dynamic from 'next/dynamic';
+
     loading: ComponentSkeletons.Dashboard,
-    ssr: false // Disable SSR for dashboard since it requires authentication
+
+    ssr: falseimport { ComponentSkeletons } from '@/components/loading-skeletons';import { ComponentSkeletons } from '@/components/loading-skeletons';
+
   }),
 
-  StreamerDashboard: dynamic(() => import('@/components/StreamerDashboard'), {
-    loading: ComponentSkeletons.StreamerDashboard,
-    ssr: false // WebRTC components don't work with SSR
-  }),
 
-  ViewerInterface: dynamic(() => import('@/components/ViewerInterface'), {
-    loading: ComponentSkeletons.ViewerInterface,
-    ssr: false // WebRTC components don't work with SSR
-  }),
 
-  AuthForm: dynamic(() => import('@/components/auth/AuthForm'), {
-    loading: ComponentSkeletons.AuthForm,
-    ssr: true // Auth forms can be SSR'd
-  }),
+  AuthForm: dynamic(() => import('@/components/auth/AuthForm').then(mod => ({ default: mod.default })), {
 
-  // Large libraries that should be lazy loaded
-  SimplePeer: dynamic(() => import('simple-peer'), {
-    loading: ComponentSkeletons.Generic,
-    ssr: false
-  }),
+    loading: ComponentSkeletons.Dashboard,// Dynamic imports with optimized loading// Dynamic imports with optimized loading
 
-  // Audio visualizer (heavy canvas operations)
-  AudioVisualizer: dynamic(() => import('@/components/AudioVisualizer'), {
-    loading: () => <div className="h-20 bg-slate-700 rounded animate-pulse"></div>,
-    ssr: false
-  }),
+    ssr: true
 
-  // Settings panels (not immediately needed)
-  SessionSettings: dynamic(() => import('@/components/SessionSettings'), {
-    loading: ComponentSkeletons.Generic,
-    ssr: false
-  }),
+  })export const DynamicComponents = {export const DynamicComponents = {
 
-  // Analytics dashboard (heavy charts)
-  Analytics: dynamic(() => import('@/components/Analytics'), {
-    loading: ComponentSkeletons.Generic,
-    ssr: false
-  })
 } as const;
 
+  // Heavy components that should be code-split  // Heavy components that should be code-split
+
 // React performance optimization hooks
-export const useOptimizedCallback = <T extends (...args: any[]) => any>(
+
+export const useOptimizedCallback = <T extends (...args: any[]) => any>(  Dashboard: dynamic(() => import('@/components/Dashboard'), {  Dashboard: dynamic(() => import('@/components/Dashboard'), {
+
   callback: T,
-  deps: React.DependencyList
+
+  deps: React.DependencyList    loading: ComponentSkeletons.Dashboard,    loading: ComponentSkeletons.Dashboard,
+
 ): T => {
-  return useCallback(callback, deps);
+
+  return useCallback(callback, deps);    ssr: false // Disable SSR for dashboard since it requires authentication    ssr: false // Disable SSR for dashboard since it requires authentication
+
 };
+
+  }),  }),
 
 export const useOptimizedMemo = <T>(
+
   factory: () => T,
-  deps: React.DependencyList | undefined
-): T => {
+
+  deps: React.DependencyList
+
+): T => {  AuthForm: dynamic(() => import('@/components/auth/AuthForm').then(mod => ({ default: mod.default })), {  AuthForm: dynamic(() => import('@/components/auth/AuthForm').then(mod => ({ default: mod.default })), {
+
   return useMemo(factory, deps);
-};
 
-// Debounced value hook for performance
+};    loading: ComponentSkeletons.Dashboard,    loading: ComponentSkeletons.Dashboard,
+
+
+
+// Debounced value hook for performance    ssr: true // Auth forms can be SSR'd    ssr: true // Auth forms can be SSR'd
+
 export const useDebounce = <T>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
 
-  useEffect(() => {
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);  })  })
+
+
+
+  useEffect(() => {} as const;} as const;
+
     const handler = setTimeout(() => {
+
       setDebouncedValue(value);
+
     }, delay);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
+// React performance optimization hooks// React performance optimization hooks
 
-  return debouncedValue;
+    return () => {
+
+      clearTimeout(handler);export const useOptimizedCallback = <T extends (...args: any[]) => any>(export const useOptimizedCallback = <T extends (...args: any[]) => any>(
+
+    };
+
+  }, [value, delay]);  callback: T,  callback: T,
+
+
+
+  return debouncedValue;  deps: React.DependencyList  deps: React.DependencyList
+
 };
 
-// Throttled callback hook
-export const useThrottle = <T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): T => {
-  const lastCall = useRef<number>(0);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+): T => {): T => {
 
-  return useCallback((...args: Parameters<T>) => {
-    const now = Date.now();
-    
-    if (now - lastCall.current >= delay) {
-      lastCall.current = now;
-      return callback(...args);
-    } else {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = setTimeout(() => {
-        lastCall.current = Date.now();
-        callback(...args);
-      }, delay - (now - lastCall.current));
-    }
-  }, [callback, delay]) as T;
+// WebRTC Performance Optimizations
+
+export const WebRTCOptimizations = {  return useCallback(callback, deps);  return useCallback(callback, deps);
+
+  getOptimizedRTCConfig: (): RTCConfiguration => ({
+
+    iceServers: [};};
+
+      { urls: 'stun:stun.l.google.com:19302' },
+
+      { urls: 'stun:stun1.l.google.com:19302' }
+
+    ],
+
+    iceCandidatePoolSize: 10,export const useOptimizedMemo = <T>(export const useOptimizedMemo = <T>(
+
+    bundlePolicy: 'max-bundle',
+
+    rtcpMuxPolicy: 'require',  factory: () => T,  factory: () => T,
+
+    iceTransportPolicy: 'all'
+
+  }),  deps: React.DependencyList  deps: React.DependencyList | undefined
+
+
+
+  getAdaptiveAudioConstraints: (): MediaStreamConstraints => ({): T => {): T => {
+
+    audio: {
+
+      echoCancellation: true,  return useMemo(factory, deps);  return useMemo(factory, deps);
+
+      noiseSuppression: true,
+
+      autoGainControl: true,};};
+
+      sampleRate: { ideal: 48000, min: 16000 },
+
+      channelCount: { ideal: 1, max: 2 }
+
+    },
+
+    video: false// Debounced value hook for performance// Debounced value hook for performance
+
+  })
+
+} as const;export const useDebounce = <T>(value: T, delay: number): T => {export const useDebounce = <T>(value: T, delay: number): T => {
+
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
+
+
+
+  useEffect(() => {  useEffect(() => {
+
+    const handler = setTimeout(() => {    const handler = setTimeout(() => {
+
+      setDebouncedValue(value);      setDebouncedValue(value);
+
+    }, delay);    }, delay);
+
+
+
+    return () => {    return () => {
+
+      clearTimeout(handler);      clearTimeout(handler);
+
+    };    };
+
+  }, [value, delay]);  }, [value, delay]);
+
+
+
+  return debouncedValue;  return debouncedValue;
+
+};};
+
+
+
+// Throttled callback hook// Throttled callback hook
+
+export const useThrottle = <T extends (...args: any[]) => any>(export const useThrottle = <T extends (...args: any[]) => any>(
+
+  callback: T,  callback: T,
+
+  delay: number  delay: number
+
+): T => {): T => {
+
+  const lastCall = useRef<number>(0);  const lastCall = useRef<number>(0);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+
+
+  return useCallback((...args: Parameters<T>) => {  return useCallback((...args: Parameters<T>) => {
+
+    const now = Date.now();    const now = Date.now();
+
+        
+
+    if (now - lastCall.current >= delay) {    if (now - lastCall.current >= delay) {
+
+      lastCall.current = now;      lastCall.current = now;
+
+      return callback(...args);      return callback(...args);
+
+    } else {    } else {
+
+      if (timeoutRef.current) {      if (timeoutRef.current) {
+
+        clearTimeout(timeoutRef.current);        clearTimeout(timeoutRef.current);
+
+      }      }
+
+            timeoutRef.current = setTimeout(() => {
+
+      timeoutRef.current = setTimeout(() => {        lastCall.current = Date.now();
+
+        lastCall.current = Date.now();        callback(...args);
+
+        callback(...args);      }, delay - (now - lastCall.current));
+
+      }, delay - (now - lastCall.current));    }
+
+    }  }, [callback, delay]) as T;
+
+  } as T, [callback, delay]);};
+
 };
 
 // Virtual scrolling for large lists
-export const useVirtualList = <T>(
-  items: T[],
-  itemHeight: number,
-  containerHeight: number
-) => {
-  const [scrollTop, setScrollTop] = React.useState(0);
 
-  const visibleItems = useMemo(() => {
-    const startIndex = Math.floor(scrollTop / itemHeight);
-    const endIndex = Math.min(
-      startIndex + Math.ceil(containerHeight / itemHeight) + 1,
-      items.length
-    );
+// WebRTC Performance Optimizationsexport const useVirtualList = <T>(
 
-    return {
-      startIndex,
-      endIndex,
-      visibleItems: items.slice(startIndex, endIndex),
-      totalHeight: items.length * itemHeight,
-      offsetY: startIndex * itemHeight
-    };
-  }, [items, itemHeight, containerHeight, scrollTop]);
+export const WebRTCOptimizations = {  items: T[],
 
-  return {
-    ...visibleItems,
-    setScrollTop
-  };
-};
+  // Optimized RTC configuration for better performance  itemHeight: number,
 
-// Intersection Observer hook for lazy loading
+  getOptimizedRTCConfig: (): RTCConfiguration => ({  containerHeight: number
+
+    iceServers: [) => {
+
+      { urls: 'stun:stun.l.google.com:19302' },  const [scrollTop, setScrollTop] = React.useState(0);
+
+      { urls: 'stun:stun1.l.google.com:19302' }
+
+    ],  const visibleItems = useMemo(() => {
+
+    iceCandidatePoolSize: 10,    const startIndex = Math.floor(scrollTop / itemHeight);
+
+    bundlePolicy: 'max-bundle',    const endIndex = Math.min(
+
+    rtcpMuxPolicy: 'require',      startIndex + Math.ceil(containerHeight / itemHeight) + 1,
+
+    iceTransportPolicy: 'all'      items.length
+
+  }),    );
+
+
+
+  // Adaptive audio constraints based on device capabilities    return {
+
+  getAdaptiveAudioConstraints: (): MediaStreamConstraints => ({      startIndex,
+
+    audio: {      endIndex,
+
+      echoCancellation: true,      visibleItems: items.slice(startIndex, endIndex),
+
+      noiseSuppression: true,      totalHeight: items.length * itemHeight,
+
+      autoGainControl: true,      offsetY: startIndex * itemHeight
+
+      sampleRate: { ideal: 48000, min: 16000 },    };
+
+      channelCount: { ideal: 1, max: 2 },  }, [items, itemHeight, containerHeight, scrollTop]);
+
+      // Adaptive bitrate based on connection
+
+      ...(navigator.connection && (navigator.connection as any).effectiveType === '4g'   return {
+
+        ? { sampleSize: 16 }     ...visibleItems,
+
+        : { sampleSize: 8 })    setScrollTop
+
+    },  };
+
+    video: false};
+
+  })
+
+} as const;// Intersection Observer hook for lazy loading
+
 export const useIntersectionObserver = (
-  ref: React.RefObject<Element>,
-  options: IntersectionObserverInit = {}
-) => {
-  const [isIntersecting, setIsIntersecting] = React.useState(false);
 
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
+// Cache management utilities  ref: React.RefObject<Element>,
 
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsIntersecting(entry.isIntersecting),
-      options
-    );
+export const CacheOptimizations = {  options: IntersectionObserverInit = {}
 
-    observer.observe(element);
-    return () => observer.unobserve(element);
-  }, [ref, options]);
+  // LRU Cache implementation for frequently accessed data) => {
 
-  return isIntersecting;
-};
+  createLRUCache: <T>(maxSize: number) => {  const [isIntersecting, setIsIntersecting] = React.useState(false);
 
-// Optimized component wrapper with memoization
-export const withPerformanceOptimization = <P extends object>(
-  Component: React.ComponentType<P>,
-  areEqual?: (prevProps: P, nextProps: P) => boolean
-) => {
-  const OptimizedComponent = memo(Component, areEqual);
-  OptimizedComponent.displayName = `Optimized(${Component.displayName || Component.name})`;
-  return OptimizedComponent;
-};
+    const cache = new Map<string, T>();
 
-// Bundle size analysis helper (development only)
-export const BundleAnalyzer = {
-  logComponentSize: (componentName: string, component: any) => {
-    if (process.env.NODE_ENV === 'development') {
+      useEffect(() => {
+
+    return {    const element = ref.current;
+
+      get: (key: string): T | undefined => {    if (!element) return;
+
+        if (cache.has(key)) {
+
+          const value = cache.get(key)!;    const observer = new IntersectionObserver(
+
+          cache.delete(key);      ([entry]) => setIsIntersecting(entry.isIntersecting),
+
+          cache.set(key, value);      options
+
+          return value;    );
+
+        }
+
+        return undefined;    observer.observe(element);
+
+      },    return () => observer.unobserve(element);
+
+        }, [ref, options]);
+
+      set: (key: string, value: T): void => {
+
+        if (cache.has(key)) {  return isIntersecting;
+
+          cache.delete(key);};
+
+        } else if (cache.size >= maxSize) {
+
+          const firstKey = cache.keys().next().value;// Optimized component wrapper with memoization
+
+          cache.delete(firstKey);export const withPerformanceOptimization = <P extends object>(
+
+        }  Component: React.ComponentType<P>,
+
+        cache.set(key, value);  areEqual?: (prevProps: P, nextProps: P) => boolean
+
+      },) => {
+
+        const OptimizedComponent = memo(Component, areEqual);
+
+      clear: (): void => {  OptimizedComponent.displayName = `Optimized(${Component.displayName || Component.name})`;
+
+        cache.clear();  return OptimizedComponent;
+
+      },};
+
+      
+
+      size: (): number => cache.size// Bundle size analysis helper (development only)
+
+    };export const BundleAnalyzer = {
+
+  }  logComponentSize: (componentName: string, component: any) => {
+
+} as const;    if (process.env.NODE_ENV === 'development') {
       // Rough estimation of component size
       const size = JSON.stringify(component).length;
       console.log(`Component ${componentName} estimated size: ${size} bytes`);
