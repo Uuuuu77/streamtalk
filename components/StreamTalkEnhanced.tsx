@@ -372,7 +372,7 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <div className="container mx-auto px-4 py-8">
+      <div className="mobile-safe-container py-8">
         {/* Header - Mobile-First Responsive */}
         <div className="flex flex-col lg:flex-row justify-between items-start gap-4 mb-6 sm:mb-8">
           <div className="w-full lg:w-auto">
@@ -380,7 +380,7 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
               variant="outline"
               size="sm"
               onClick={() => setCurrentView('landing')}
-              className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent mb-3 sm:mb-4 min-h-[44px]"
+              className="mobile-touch-target border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent mb-3 sm:mb-4"
             >
               ← Back to Home
             </Button>
@@ -396,7 +396,7 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
             <Button
               variant="outline"
               onClick={() => setShowSettings(!showSettings)}
-              className="border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent min-h-[44px]"
+              className="mobile-touch-target border-slate-600 text-gray-300 hover:bg-slate-700 bg-transparent"
             >
               <Settings className="w-4 h-4" />
               <span className="ml-2 sm:hidden">Settings</span>
@@ -404,7 +404,7 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
           </div>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div className="mobile-safe-grid lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Main Content - Mobile-First Layout */}
           <div className="lg:col-span-2 space-y-6 sm:space-y-8">
             {/* Current Speaker - Responsive Design */}
@@ -440,7 +440,7 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
                           onClick={endSpeaking}
                           variant="outline"
                           size="sm"
-                          className="border-red-500/50 text-red-400 hover:bg-red-500/10 min-h-[40px] w-full sm:w-auto"
+                          className="mobile-touch-target border-red-500/50 text-red-400 hover:bg-red-500/10 w-full sm:w-auto"
                         >
                           End Speaking
                         </Button>
@@ -575,7 +575,7 @@ function StreamerDashboard({ sessionData, setCurrentView, connectionStatus, setC
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="mobile-safe-grid md:grid-cols-2 gap-4 text-center">
                   <div className="bg-slate-700/50 rounded-lg p-3">
                     <div className="text-2xl font-bold text-purple-400">{sessionStats.totalViewers}</div>
                     <div className="text-gray-400 text-sm">Total Viewers</div>

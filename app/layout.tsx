@@ -13,12 +13,18 @@ export const metadata: Metadata = {
   description: "Transform your one-way livestreams into dynamic, two-way audio conversations",
   keywords: ["streaming", "audio", "interactive", "webrtc", "live"],
   authors: [{ name: "StreamTalk Team" }],
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: "cover"
+  },
   openGraph: {
     title: "StreamTalk - Interactive Live Streaming",
     description: "Give every viewer a voice with real-time audio interaction",
     type: "website",
   },
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({

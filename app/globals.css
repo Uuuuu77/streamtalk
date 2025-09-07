@@ -223,13 +223,118 @@
   @apply bg-red-500/20 text-red-400 border-red-500/30;
 }
 
+/* Mobile-safe CSS utilities */
+.mobile-safe-container {
+  @apply w-full px-4 mx-auto;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.mobile-safe-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-touch-target {
+  @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.mobile-safe-button {
+  @apply mobile-touch-target px-6 py-3 rounded-lg font-medium transition-all duration-200;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-safe-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.mobile-safe-button:active {
+  transform: translateY(0);
+  opacity: 0.8;
+}
+
+.mobile-safe-text {
+  @apply text-base leading-relaxed;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.mobile-container-overflow-fix {
+  @apply w-full;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Toast positioning for mobile */
+.mobile-toast-container {
+  position: fixed;
+  bottom: env(safe-area-inset-bottom, 20px);
+  left: 16px;
+  right: 16px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.mobile-toast {
+  @apply mobile-safe-container p-4 rounded-lg shadow-lg;
+  background: var(--card);
+  border: 1px solid var(--border);
+  pointer-events: auto;
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+/* Safe area support */
+.safe-area-padding {
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
 /* Responsive design helpers */
 @media (max-width: 768px) {
   .floating-controls {
     position: fixed;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
+    bottom: env(safe-area-inset-bottom, 20px);
+    left: 16px;
+    right: 16px;
     top: auto;
+    max-width: none;
+  }
+  
+  /* Force containers to not overflow on mobile */
+  .container {
+    @apply mobile-container-overflow-fix;
+  }
+  
+  /* Mobile-specific layout adjustments */
+  .grid {
+    @apply grid-cols-1;
+  }
+  
+  .md\:grid-cols-2 {
+    @apply grid-cols-1;
+  }
+  
+  .lg\:grid-cols-3 {
+    @apply grid-cols-1;
+  }
+  
+  /* Ensure buttons are touch-friendly */
+  button, .btn, [role="button"] {
+    @apply mobile-touch-target;
   }
 }

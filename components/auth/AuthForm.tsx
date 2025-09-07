@@ -93,7 +93,7 @@ export function AuthForm({ mode = 'signin', onClose, onSuccess }: AuthFormProps)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md p-6 bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-800">
+      <Card className="mobile-container-overflow-fix w-full max-w-md p-6 bg-white dark:bg-slate-800 border-purple-200 dark:border-purple-800">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-purple-900 dark:text-purple-100">
             {mode === 'signin' ? 'Sign In' : 'Create Account'}
@@ -102,7 +102,7 @@ export function AuthForm({ mode = 'signin', onClose, onSuccess }: AuthFormProps)
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-700"
+            className="mobile-touch-target text-slate-500 hover:text-slate-700"
           >
             ✕
           </Button>
@@ -173,7 +173,7 @@ export function AuthForm({ mode = 'signin', onClose, onSuccess }: AuthFormProps)
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+            className="mobile-safe-button w-full bg-purple-600 hover:bg-purple-700 text-white"
           >
             {isLoading ? (
               <>
@@ -193,7 +193,7 @@ export function AuthForm({ mode = 'signin', onClose, onSuccess }: AuthFormProps)
           <Button
             variant="link"
             onClick={() => window.location.reload()}
-            className="text-purple-600 hover:text-purple-700 p-0"
+            className="mobile-touch-target text-purple-600 hover:text-purple-700 p-0"
           >
             {mode === 'signin' ? 'Create one here' : 'Sign in instead'}
           </Button>
