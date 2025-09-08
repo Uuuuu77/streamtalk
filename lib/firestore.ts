@@ -40,6 +40,17 @@ export interface Participant {
   signalData?: any[];
 }
 
+export interface SignalData {
+  id: string;
+  roomId: string;
+  from: string;
+  to: string;
+  type: 'signal' | 'offer' | 'answer' | 'ice-candidate';
+  signal: any;
+  timestamp: number;
+  processed?: boolean;
+}
+
 export class FirestoreService {
   // Room operations
   async createRoom(roomData: Omit<Room, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
@@ -173,22 +184,49 @@ export class FirestoreService {
     });
   }
 
-  // WebRTC signaling
-  async addSignalData(participantId: string, signalData: any): Promise<void> {
+  // WebRTC signaling - improved implementation
+  async addSignalData(roomId: string, targetUserId: string, signalData: Omit<SignalData, 'id' | 'roomId'>): Promise<string> {
     try {
-      const participantRef = doc(db, 'participants', participantId);
-      const participant = await getDoc(participantRef);
-      
-      if (participant.exists()) {
-        const existingData = participant.data().signalData || [];
-        await updateDoc(participantRef, {
-          signalData: [...existingData, signalData]
-        });
-      }
+      const docRef = await addDoc(collection(db, 'signals'), {
+        ...signalData,
+        roomId,
+        processed: false,
+        createdAt: serverTimestamp()
+      });
+      return docRef.id;
     } catch (error) {
       console.error('Error adding signal data:', error);
       throw error;
     }
+  }
+
+  subscribeToSignals(roomId: string, userId: string, callback: (signals: SignalData[]) => void): () => void {
+    const q = query(
+      collection(db, 'signals'),
+      where('roomId', '==', roomId),
+      where('to', '==', userId),
+      where('processed', '==', false),
+      orderBy('timestamp', 'asc')
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const signals: SignalData[] = [];
+      snapshot.forEach((doc) => {
+        signals.push({ id: doc.id, ...doc.data() } as SignalData);
+      });
+      
+      // Mark signals as processed
+      signals.forEach(async (signal) => {
+        try {
+          const signalRef = doc(db, 'signals', signal.id);
+          await updateDoc(signalRef, { processed: true });
+        } catch (error) {
+          console.error('Error marking signal as processed:', error);
+        }
+      });
+      
+      callback(signals);
+    });
   }
 
   async clearSignalData(participantId: string): Promise<void> {
