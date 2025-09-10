@@ -99,16 +99,22 @@ export const useWebRTCConnection = ({ roomId, participantId, myUserId, isHost }:
       stream: localStreamRef.current || undefined,
       config: {
         iceServers: [
+          // Google's reliable public STUN servers
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
           { urls: 'stun:stun2.l.google.com:19302' },
-          // TURN servers for better connectivity
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+          // Additional reliable STUN servers for fallback
+          { urls: 'stun:stun.services.mozilla.com' },
+          { urls: 'stun:stun.nextcloud.com:443' },
+          // Free TURN server for relay when direct connection fails
           {
             urls: 'turn:numb.viagenie.ca',
             username: 'webrtc@live.com',
             credential: 'muazkh'
           },
-          // Custom TURN server from env (if configured)
+          // Custom TURN server from env (if configured) - takes priority
           ...(process.env.NEXT_PUBLIC_TURN_URL ? [{
             urls: process.env.NEXT_PUBLIC_TURN_URL,
             username: process.env.NEXT_PUBLIC_TURN_USERNAME || '',
