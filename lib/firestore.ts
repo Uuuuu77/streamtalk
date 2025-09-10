@@ -18,6 +18,7 @@ import { db } from '@/lib/firebase';
 export interface Room {
   id: string;
   hostId: string;
+  hostParticipantId?: string; // New field for host participant document ID
   title: string;
   description?: string;
   isActive: boolean;
@@ -37,18 +38,16 @@ export interface Participant {
   status: 'waiting' | 'speaking' | 'finished';
   joinedAt: Timestamp;
   isMuted: boolean;
-  signalData?: any[];
+  isHost?: boolean; // New field to identify host participant
 }
 
-export interface SignalData {
+export interface SignalDoc {
   id: string;
-  roomId: string;
-  from: string;
-  to: string;
-  type: 'signal' | 'offer' | 'answer' | 'ice-candidate';
-  signal: any;
+  fromParticipantId: string;
+  type: 'offer' | 'answer' | 'candidate';
+  payload: any;
   timestamp: number;
-  processed?: boolean;
+  createdAt: Timestamp;
 }
 
 export class FirestoreService {
@@ -116,26 +115,28 @@ export class FirestoreService {
     });
   }
 
-  // Participant operations
-  async addParticipant(roomId: string, participantData: Omit<Participant, 'id' | 'joinedAt'>): Promise<string> {
+  // Participant operations - updated for subcollection structure
+  async addParticipant(roomId: string, participantData: Omit<Participant, 'id' | 'joinedAt' | 'roomId'>): Promise<string> {
     try {
+      console.log(`[Firestore] Adding participant to room ${roomId}:`, participantData.name);
       const participantWithTimestamp = {
         ...participantData,
         roomId,
         joinedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, 'participants'), participantWithTimestamp);
+      const docRef = await addDoc(collection(db, 'rooms', roomId, 'participants'), participantWithTimestamp);
+      console.log(`[Firestore] Participant added with ID: ${docRef.id}`);
       return docRef.id;
     } catch (error) {
-      console.error('Error adding participant:', error);
+      console.error('[Firestore] Error adding participant:', error);
       throw error;
     }
   }
 
-  async getParticipant(participantId: string): Promise<Participant | null> {
+  async getParticipant(roomId: string, participantId: string): Promise<Participant | null> {
     try {
-      const participantRef = doc(db, 'participants', participantId);
+      const participantRef = doc(db, 'rooms', roomId, 'participants', participantId);
       const participantSnap = await getDoc(participantRef);
       
       if (participantSnap.exists()) {
@@ -143,98 +144,128 @@ export class FirestoreService {
       }
       return null;
     } catch (error) {
-      console.error('Error getting participant:', error);
+      console.error('[Firestore] Error getting participant:', error);
       throw error;
     }
   }
 
-  async updateParticipant(participantId: string, updates: Partial<Participant>): Promise<void> {
+  async updateParticipant(roomId: string, participantId: string, updates: Partial<Participant>): Promise<void> {
     try {
-      const participantRef = doc(db, 'participants', participantId);
+      console.log(`[Firestore] Updating participant ${participantId}:`, updates);
+      const participantRef = doc(db, 'rooms', roomId, 'participants', participantId);
       await updateDoc(participantRef, updates);
     } catch (error) {
-      console.error('Error updating participant:', error);
+      console.error('[Firestore] Error updating participant:', error);
       throw error;
     }
   }
 
-  async removeParticipant(participantId: string): Promise<void> {
+  async removeParticipant(roomId: string, participantId: string): Promise<void> {
     try {
-      const participantRef = doc(db, 'participants', participantId);
+      console.log(`[Firestore] Removing participant ${participantId} from room ${roomId}`);
+      const participantRef = doc(db, 'rooms', roomId, 'participants', participantId);
       await deleteDoc(participantRef);
     } catch (error) {
-      console.error('Error removing participant:', error);
+      console.error('[Firestore] Error removing participant:', error);
       throw error;
     }
   }
 
   subscribeToParticipants(roomId: string, callback: (participants: Participant[]) => void): () => void {
-    const q = query(
-      collection(db, 'participants'),
-      where('roomId', '==', roomId),
-      orderBy('joinedAt', 'asc')
-    );
+    console.log(`[Firestore] Subscribing to participants for room: ${roomId}`);
+    const participantsRef = collection(db, 'rooms', roomId, 'participants');
+    const q = query(participantsRef, orderBy('joinedAt', 'asc'));
 
     return onSnapshot(q, (querySnapshot) => {
       const participants: Participant[] = [];
       querySnapshot.forEach((doc) => {
         participants.push({ id: doc.id, ...doc.data() } as Participant);
       });
+      console.log(`[Firestore] Participants updated: ${participants.length} participants`);
       callback(participants);
+    }, (error) => {
+      console.error('[Firestore] Error in participants subscription:', error);
     });
   }
 
-  // WebRTC signaling - improved implementation
-  async addSignalData(roomId: string, targetUserId: string, signalData: Omit<SignalData, 'id' | 'roomId'>): Promise<string> {
+  // WebRTC signaling with signals subcollection pattern
+  async addSignal(roomId: string, targetParticipantId: string, signalObj: {
+    fromParticipantId: string;
+    type: 'offer' | 'answer' | 'candidate';
+    payload: any;
+  }): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'signals'), {
-        ...signalData,
-        roomId,
-        processed: false,
+      console.log(`[Firestore] Adding signal to participant ${targetParticipantId}:`, signalObj.type);
+      const signalsRef = collection(db, 'rooms', roomId, 'participants', targetParticipantId, 'signals');
+      const docRef = await addDoc(signalsRef, {
+        ...signalObj,
+        timestamp: Date.now(),
         createdAt: serverTimestamp()
       });
+      console.log(`[Firestore] Signal added with ID: ${docRef.id}`);
       return docRef.id;
     } catch (error) {
-      console.error('Error adding signal data:', error);
+      console.error('[Firestore] Error adding signal:', error);
       throw error;
     }
   }
 
-  subscribeToSignals(roomId: string, userId: string, callback: (signals: SignalData[]) => void): () => void {
-    const q = query(
-      collection(db, 'signals'),
-      where('roomId', '==', roomId),
-      where('to', '==', userId),
-      where('processed', '==', false),
-      orderBy('timestamp', 'asc')
-    );
+  subscribeToSignals(roomId: string, participantId: string, callback: (signalDoc: { id: string; data: any }) => void): () => void {
+    console.log(`[Firestore] Subscribing to signals for participant: ${participantId}`);
+    const signalsRef = collection(db, 'rooms', roomId, 'participants', participantId, 'signals');
+    const q = query(signalsRef, orderBy('timestamp', 'asc'));
 
     return onSnapshot(q, (snapshot) => {
-      const signals: SignalData[] = [];
-      snapshot.forEach((doc) => {
-        signals.push({ id: doc.id, ...doc.data() } as SignalData);
-      });
-      
-      // Mark signals as processed
-      signals.forEach(async (signal) => {
-        try {
-          const signalRef = doc(db, 'signals', signal.id);
-          await updateDoc(signalRef, { processed: true });
-        } catch (error) {
-          console.error('Error marking signal as processed:', error);
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const signalDoc = {
+            id: change.doc.id,
+            data: change.doc.data()
+          };
+          console.log(`[Firestore] New signal received for ${participantId}:`, signalDoc.data.type);
+          callback(signalDoc);
         }
       });
-      
-      callback(signals);
+    }, (error) => {
+      console.error('[Firestore] Error in signals subscription:', error);
     });
   }
 
-  async clearSignalData(participantId: string): Promise<void> {
+  async deleteSignal(roomId: string, participantId: string, signalDocId: string): Promise<void> {
     try {
-      const participantRef = doc(db, 'participants', participantId);
-      await updateDoc(participantRef, { signalData: [] });
+      console.log(`[Firestore] Deleting signal ${signalDocId} for participant ${participantId}`);
+      const signalRef = doc(db, 'rooms', roomId, 'participants', participantId, 'signals', signalDocId);
+      await deleteDoc(signalRef);
     } catch (error) {
-      console.error('Error clearing signal data:', error);
+      console.error('[Firestore] Error deleting signal:', error);
+      throw error;
+    }
+  }
+
+  // Host participant management - ensure host has a participant doc
+  async createHostParticipant(roomId: string, hostUserId: string, hostName: string = 'Host'): Promise<string> {
+    try {
+      console.log(`[Firestore] Creating host participant for room ${roomId}`);
+      const participantData = {
+        userId: hostUserId,
+        name: hostName,
+        status: 'speaking' as const,
+        isMuted: false,
+        isHost: true
+      };
+
+      const docRef = await addDoc(collection(db, 'rooms', roomId, 'participants'), {
+        ...participantData,
+        joinedAt: serverTimestamp()
+      });
+      
+      // Update room with host participant ID
+      await this.updateRoom(roomId, { hostParticipantId: docRef.id });
+      
+      console.log(`[Firestore] Host participant created with ID: ${docRef.id}`);
+      return docRef.id;
+    } catch (error) {
+      console.error('[Firestore] Error creating host participant:', error);
       throw error;
     }
   }

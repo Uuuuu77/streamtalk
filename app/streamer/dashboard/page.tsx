@@ -44,7 +44,8 @@ export default function StreamerDashboardPage() {
           streamerId,
           title,
           description,
-          maxSpeakingTime,
+          speakingTimeLimit: maxSpeakingTime,
+          maxParticipants: 50, // Add required field
           autoSelectEnabled,
           recordingEnabled,
         })

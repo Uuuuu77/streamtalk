@@ -16,7 +16,9 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
   const { user } = useAuth();
   const [participants, setParticipants] = useState<any[]>([]);
   const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null);
+  const [hostParticipantId, setHostParticipantId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [room, setRoom] = useState<any>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   
   const { 
@@ -29,31 +31,92 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
     createPeerConnection
   } = useWebRTCConnection({
     roomId: sessionId,
-    userId: user?.uid || 'host',
+    participantId: hostParticipantId,
+    myUserId: user?.uid || 'host',
     isHost: true
   });
 
-  // Initialize audio on mount
+  // Load room and create host participant
   useEffect(() => {
-    if (!isInitialized && user) {
-      initializeAudio();
-      setIsInitialized(true);
-    }
-  }, [initializeAudio, isInitialized, user]);
+    const initializeHostSession = async () => {
+      if (!user?.uid || isInitialized) return;
 
-  // Subscribe to queue participants
+      try {
+        console.log('[StreamerDashboard] Initializing host session');
+        
+        // Get room data
+        const roomData = await firestoreService.getRoom(sessionId);
+        if (!roomData) {
+          console.error('[StreamerDashboard] Room not found');
+          return;
+        }
+        
+        setRoom(roomData);
+        console.log('[StreamerDashboard] Room loaded:', roomData.title);
+
+        // Create or get host participant
+        let hostParticipantDocId = roomData.hostParticipantId;
+        
+        if (!hostParticipantDocId) {
+          console.log('[StreamerDashboard] Creating host participant document');
+          hostParticipantDocId = await firestoreService.createHostParticipant(
+            sessionId,
+            user.uid,
+            user.displayName || 'Host'
+          );
+        }
+
+        setHostParticipantId(hostParticipantDocId);
+        console.log('[StreamerDashboard] Host participant ID:', hostParticipantDocId);
+
+        // Initialize audio immediately (user clicked "Start Hosting")
+        await initializeAudio();
+        setIsInitialized(true);
+        
+        console.log('[StreamerDashboard] Host session initialized successfully');
+      } catch (error) {
+        console.error('[StreamerDashboard] Failed to initialize host session:', error);
+        toast({
+          title: 'Initialization Error',
+          description: 'Failed to set up hosting session',
+          variant: 'destructive'
+        });
+      }
+    };
+
+    initializeHostSession();
+  }, [sessionId, user, initializeAudio, isInitialized]);
+
+  // Subscribe to participants
   useEffect(() => {
     if (!sessionId) return;
 
+    console.log('[StreamerDashboard] Subscribing to participants');
     const unsubscribe = firestoreService.subscribeToParticipants(
       sessionId,
       (updatedParticipants) => {
-        setParticipants(updatedParticipants);
+        console.log(`[StreamerDashboard] Participants updated: ${updatedParticipants.length} total`);
+        
+        // Filter out host participant for display
+        const viewerParticipants = updatedParticipants.filter(p => !p.isHost);
+        setParticipants(viewerParticipants);
+
+        // Auto-create peer connections for new participants (host initiates)
+        if (hostParticipantId && isInitialized) {
+          viewerParticipants.forEach(async (participant) => {
+            try {
+              console.log(`[StreamerDashboard] Creating peer connection to viewer: ${participant.id}`);
+              await createPeerConnection(participant.id, true); // Host initiates
+            } catch (error) {
+              console.error(`[StreamerDashboard] Failed to create peer to ${participant.id}:`, error);
+            }
+          });
+        }
       }
     );
 
     return unsubscribe;
-  }, [sessionId]);
+  }, [sessionId, hostParticipantId, isInitialized, createPeerConnection]);
 
   // Subscribe to room updates for current speaker
   useEffect(() => {
@@ -62,19 +125,31 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
     const unsubscribe = firestoreService.subscribeToRoom(sessionId, (room) => {
       if (room?.currentSpeakerId) {
         setCurrentSpeaker(room.currentSpeakerId);
+      } else {
+        setCurrentSpeaker(null);
       }
     });
 
     return unsubscribe;
   }, [sessionId]);
 
-  // Handle remote audio streams
+  // Handle remote audio streams with automatic playback
   useEffect(() => {
+    console.log(`[StreamerDashboard] Processing ${remoteStreams.size} remote streams`);
+    
     remoteStreams.forEach((stream, participantId) => {
       if (!audioRefs.current.has(participantId)) {
+        console.log(`[StreamerDashboard] Setting up audio element for participant: ${participantId}`);
         const audio = new Audio();
         audio.srcObject = stream;
         audio.autoplay = true;
+        audio.volume = 0.8;
+        
+        // Try to play audio (should work since host clicked "Start Hosting")
+        audio.play().catch(error => {
+          console.warn(`[StreamerDashboard] Autoplay failed for ${participantId}:`, error);
+        });
+        
         audioRefs.current.set(participantId, audio);
       }
     });
@@ -82,6 +157,7 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
     // Cleanup removed streams
     audioRefs.current.forEach((audio, participantId) => {
       if (!remoteStreams.has(participantId)) {
+        console.log(`[StreamerDashboard] Cleaning up audio for participant: ${participantId}`);
         audio.pause();
         audio.srcObject = null;
         audioRefs.current.delete(participantId);
@@ -94,30 +170,38 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
       if (currentSpeaker) {
         toast({
           title: "Speaker already active",
-          description: "Please end current speaker's turn first"
+          description: "Please end current speaker's turn first",
+          variant: 'destructive'
         });
         return;
       }
+
+      console.log(`[StreamerDashboard] Selecting speaker: ${participantId}`);
 
       // Update room with current speaker
       await firestoreService.updateRoom(sessionId, {
         currentSpeakerId: participantId
       });
 
-      // Create peer connection for audio
-      await createPeerConnection(participantId, false);
+      // Update participant status
+      await firestoreService.updateParticipant(sessionId, participantId, {
+        status: 'speaking',
+        isMuted: false
+      });
 
       setCurrentSpeaker(participantId);
       
       toast({
         title: "Speaker selected",
-        description: "Audio connection initiated"
+        description: "Viewer can now speak to the audience",
+        variant: 'default'
       });
     } catch (error) {
-      console.error('Error selecting speaker:', error);
+      console.error('[StreamerDashboard] Error selecting speaker:', error);
       toast({
         title: "Error",
-        description: "Failed to select speaker"
+        description: "Failed to select speaker",
+        variant: 'destructive'
       });
     }
   };
@@ -126,30 +210,40 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
     try {
       if (!currentSpeaker) return;
 
+      console.log(`[StreamerDashboard] Ending speaking for: ${currentSpeaker}`);
+
       // Update room
       await firestoreService.updateRoom(sessionId, {
         currentSpeakerId: null
+      });
+
+      // Update participant status
+      await firestoreService.updateParticipant(sessionId, currentSpeaker, {
+        status: 'waiting',
+        isMuted: true
       });
 
       setCurrentSpeaker(null);
       
       toast({
         title: "Speaking ended",
-        description: "Speaker has been disconnected"
+        description: "Speaker has been muted",
+        variant: 'default'
       });
     } catch (error) {
-      console.error('Error ending speaking:', error);
+      console.error('[StreamerDashboard] Error ending speaking:', error);
     }
   };
 
   const endSession = async () => {
     try {
+      console.log('[StreamerDashboard] Ending session');
       await firestoreService.updateRoom(sessionId, {
         isActive: false
       });
       onEndSession();
     } catch (error) {
-      console.error('Error ending session:', error);
+      console.error('[StreamerDashboard] Error ending session:', error);
     }
   };
 
@@ -158,12 +252,26 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
     navigator.clipboard.writeText(link);
     toast({
       title: "Link copied",
-      description: "Invite link copied to clipboard"
+      description: "Invite link copied to clipboard",
+      variant: 'default'
     });
   };
 
   const waitingParticipants = participants.filter(p => p.status === 'waiting');
   const speakingParticipant = participants.find(p => p.status === 'speaking');
+
+  if (!room) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-8">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+            <p className="text-white text-center">Loading session...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -175,7 +283,8 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
               <h1 className="text-3xl font-bold text-white mb-2">
                 Stream<span className="text-purple-400">Talk</span> Dashboard
               </h1>
-              <p className="text-gray-300">Session: {sessionId}</p>
+              <p className="text-gray-300">{room.title}</p>
+              <p className="text-gray-400 text-sm">Session: {sessionId}</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full">
@@ -211,12 +320,18 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
                     <p className="text-gray-400 text-sm">
                       Status: {connectionStatus} • {isAudioEnabled ? 'On' : 'Off'}
                     </p>
+                    {hostParticipantId && (
+                      <p className="text-gray-500 text-xs">
+                        Host ID: {hostParticipantId}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <Button
                       onClick={toggleMicrophone}
                       variant={isAudioEnabled ? "default" : "destructive"}
                       size="lg"
+                      disabled={!isInitialized}
                     >
                       {!isInitialized ? (
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -243,6 +358,26 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
                     />
                   </div>
                 </div>
+
+                {/* Remote Streams Status */}
+                {remoteStreams.size > 0 && (
+                  <div className="bg-slate-900/50 rounded-lg p-4">
+                    <h4 className="text-white text-sm font-medium mb-2">Connected Viewers</h4>
+                    <div className="space-y-2">
+                      {Array.from(remoteStreams.keys()).map(participantId => {
+                        const participant = participants.find(p => p.id === participantId);
+                        return (
+                          <div key={participantId} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-300">
+                              {participant?.name || `Participant ${participantId.slice(-4)}`}
+                            </span>
+                            <span className="text-green-400">🎵 Audio Active</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -258,8 +393,9 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-white font-medium">{speakingParticipant.viewerName}</p>
-                      <p className="text-gray-400 text-sm">Speaking now</p>
+                      <p className="text-white font-medium">{speakingParticipant.name}</p>
+                      <p className="text-gray-400 text-sm">Speaking to audience</p>
+                      <p className="text-gray-500 text-xs">ID: {speakingParticipant.id}</p>
                     </div>
                     <Button
                       onClick={endSpeaking}
@@ -284,16 +420,17 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
               <CardContent>
                 {waitingParticipants.length > 0 ? (
                   <div className="space-y-3">
-                    {waitingParticipants.map((participant) => (
+                    {waitingParticipants.map((participant, index) => (
                       <div
                         key={participant.id}
                         className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg"
                       >
                         <div>
-                          <p className="text-white font-medium">{participant.viewerName}</p>
+                          <p className="text-white font-medium">{participant.name}</p>
                           <p className="text-gray-400 text-sm">
-                            Position: #{participant.position} • {participant.audioReady ? 'Audio Ready' : 'Not Ready'}
+                            Position: #{index + 1} • {remoteStreams.has(participant.id) ? 'Audio Connected' : 'Connecting...'}
                           </p>
+                          <p className="text-gray-500 text-xs">ID: {participant.id}</p>
                         </div>
                         <Button
                           onClick={() => selectSpeaker(participant.id)}
@@ -356,11 +493,21 @@ export default function StreamerDashboard({ sessionId, onEndSession }: StreamerD
                   <span className="text-white">{waitingParticipants.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Connection</span>
+                  <span className="text-gray-400">Audio Connections</span>
+                  <span className="text-white">{remoteStreams.size}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Host Connection</span>
                   <span className={connectionStatus === 'connected' ? 'text-green-400' : 'text-yellow-400'}>
                     {connectionStatus}
                   </span>
                 </div>
+                {hostParticipantId && (
+                  <div className="pt-2 border-t border-slate-600">
+                    <span className="text-gray-400 text-xs">Host Participant ID</span>
+                    <p className="text-gray-300 text-xs font-mono">{hostParticipantId}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

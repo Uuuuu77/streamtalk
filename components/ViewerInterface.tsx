@@ -32,7 +32,8 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
     createPeerConnection
   } = useWebRTCConnection({
     roomId: sessionId,
-    userId: userId,
+    participantId: participantId,
+    myUserId: userId,
     isHost: false
   });
 
@@ -40,10 +41,13 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
   useEffect(() => {
     const loadRoom = async () => {
       try {
+        console.log('[ViewerInterface] Loading room data');
         const roomData = await firestoreService.getRoom(sessionId);
         if (roomData) {
           setRoom(roomData);
+          console.log('[ViewerInterface] Room loaded:', roomData.title);
         } else {
+          console.error('[ViewerInterface] Room not found');
           toast({
             title: 'Session Not Found',
             description: 'This session does not exist or has ended',
@@ -51,7 +55,7 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
           });
         }
       } catch (error) {
-        console.error('Failed to load room:', error);
+        console.error('[ViewerInterface] Failed to load room:', error);
         toast({
           title: 'Connection Error',
           description: 'Failed to connect to session',
@@ -68,6 +72,7 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
         
         // Check if this user is currently speaking
         if (participantId && updatedRoom.currentSpeakerId === participantId) {
+          console.log('[ViewerInterface] This participant is now speaking');
           setIsSpeaking(true);
         } else {
           setIsSpeaking(false);
@@ -82,36 +87,65 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
   useEffect(() => {
     if (!hasJoined || !participantId) return;
 
+    console.log('[ViewerInterface] Subscribing to participant updates');
     const unsubscribe = firestoreService.subscribeToParticipants(sessionId, (participants) => {
-      const waitingParticipants = participants
+      // Filter out host and calculate queue position
+      const viewerParticipants = participants.filter(p => !p.isHost);
+      const waitingParticipants = viewerParticipants
         .filter(p => p.status === 'waiting')
         .sort((a, b) => a.joinedAt.toMillis() - b.joinedAt.toMillis());
       
       const myIndex = waitingParticipants.findIndex(p => p.id === participantId);
       setQueuePosition(myIndex >= 0 ? myIndex + 1 : null);
+      
+      console.log(`[ViewerInterface] Queue position updated: ${myIndex + 1} of ${waitingParticipants.length}`);
     });
 
     return () => unsubscribe();
   }, [hasJoined, participantId, sessionId]);
 
-  // Play host audio
+  // Handle host audio - create connection when room loads
   useEffect(() => {
-    const hostStream = remoteStreams.get(room?.hostId);
+    if (!room?.hostParticipantId || !participantId || !hasJoined) return;
+
+    const connectToHost = async () => {
+      try {
+        console.log(`[ViewerInterface] Creating peer connection to host: ${room.hostParticipantId}`);
+        // Viewer initiates connection to host (so viewer can hear host)
+        await createPeerConnection(room.hostParticipantId, true);
+      } catch (error) {
+        console.error('[ViewerInterface] Failed to connect to host:', error);
+      }
+    };
+
+    connectToHost();
+  }, [room?.hostParticipantId, participantId, hasJoined, createPeerConnection]);
+
+  // Play host audio automatically
+  useEffect(() => {
+    const hostStream = remoteStreams.get(room?.hostParticipantId);
     if (hostStream && hostAudioRef.current) {
+      console.log('[ViewerInterface] Setting up host audio playback');
       hostAudioRef.current.srcObject = hostStream;
       hostAudioRef.current.volume = 0.8;
-      hostAudioRef.current.play().catch(e => console.error('Audio play failed:', e));
+      
+      // Try to play (should work since user clicked Join)
+      hostAudioRef.current.play().catch(error => {
+        console.warn('[ViewerInterface] Host audio autoplay failed:', error);
+      });
     }
-  }, [remoteStreams, room?.hostId]);
+  }, [remoteStreams, room?.hostParticipantId]);
 
-  // Handle speaking status changes
+  // Handle speaking status changes - initialize audio when selected
   useEffect(() => {
     if (isSpeaking && !isInitialized) {
+      console.log('[ViewerInterface] Selected to speak - initializing audio');
       // Initialize audio when selected to speak
       initializeAudio().then(() => {
         setIsInitialized(true);
+        console.log('[ViewerInterface] Audio initialized for speaking');
       }).catch(error => {
-        console.error('Failed to initialize audio for speaking:', error);
+        console.error('[ViewerInterface] Failed to initialize audio for speaking:', error);
         toast({
           title: 'Microphone Required',
           description: 'Please allow microphone access to speak',
@@ -141,27 +175,22 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
     }
 
     try {
-      // Initialize audio for connection (without speaking permission yet)
-      await initializeAudio();
-      setIsInitialized(true);
+      console.log('[ViewerInterface] Joining queue with name:', viewerName);
 
-      // Add participant to Firestore
+      // Add participant to Firestore (using subcollection)
       const participantData = {
         userId: userId,
-        roomId: sessionId,
         name: viewerName,
         status: 'waiting' as const,
-        isMuted: true // Start muted until selected to speak
+        isMuted: true, // Start muted until selected to speak
+        isHost: false
       };
 
       const id = await firestoreService.addParticipant(sessionId, participantData);
       setParticipantId(id);
       setHasJoined(true);
 
-      // Create peer connection to host
-      if (room.hostId) {
-        await createPeerConnection(room.hostId, true);
-      }
+      console.log('[ViewerInterface] Participant created with ID:', id);
 
       toast({
         title: 'Joined Queue! 🎤',
@@ -169,7 +198,7 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
         variant: 'default'
       });
     } catch (error) {
-      console.error('Failed to join queue:', error);
+      console.error('[ViewerInterface] Failed to join queue:', error);
       toast({
         title: 'Failed to Join',
         description: 'Could not join the queue. Please try again.',
@@ -181,7 +210,8 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
   const leaveQueue = async () => {
     if (participantId) {
       try {
-        await firestoreService.removeParticipant(participantId);
+        console.log('[ViewerInterface] Leaving queue');
+        await firestoreService.removeParticipant(sessionId, participantId);
         setHasJoined(false);
         setParticipantId(null);
         setQueuePosition(null);
@@ -194,7 +224,7 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
           variant: 'default'
         });
       } catch (error) {
-        console.error('Failed to leave queue:', error);
+        console.error('[ViewerInterface] Failed to leave queue:', error);
       }
     }
   };
@@ -251,11 +281,16 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
                 </span>
               </div>
             </div>
+            {participantId && (
+              <div className="mt-2 text-xs text-gray-500">
+                Participant ID: {participantId}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Audio Player for Host */}
-        <audio ref={hostAudioRef} autoPlay />
+        <audio ref={hostAudioRef} autoPlay playsInline />
 
         {!hasJoined ? (
           /* Join Form */
@@ -292,7 +327,7 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
               </Button>
               
               <p className="text-xs text-gray-500 text-center">
-                By joining, you agree to allow microphone access when selected to speak
+                By joining, you'll be able to hear the host and join the queue to speak
               </p>
             </CardContent>
           </Card>
@@ -391,12 +426,12 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
                     <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${
-                          remoteStreams.has(room.hostId) ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
+                          remoteStreams.has(room.hostParticipantId) ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
                         }`} />
                         <span className="text-white text-sm">Host Audio</span>
                       </div>
                       <span className="text-sm text-gray-400">
-                        {remoteStreams.has(room.hostId) ? 'Connected' : 'Connecting...'}
+                        {remoteStreams.has(room.hostParticipantId) ? 'Connected' : 'Connecting...'}
                       </span>
                     </div>
                     
@@ -412,7 +447,7 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
               </Card>
             )}
 
-            {/* Host Audio Status */}
+            {/* Connection Status */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
@@ -425,9 +460,9 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-400">Host Audio:</span>
                     <span className={`text-sm ${
-                      remoteStreams.has(room.hostId) ? 'text-green-400' : 'text-yellow-400'
+                      remoteStreams.has(room.hostParticipantId) ? 'text-green-400' : 'text-yellow-400'
                     }`}>
-                      {remoteStreams.has(room.hostId) ? '🔊 Playing' : '🔄 Connecting'}
+                      {remoteStreams.has(room.hostParticipantId) ? '🔊 Playing' : '🔄 Connecting'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -450,6 +485,16 @@ export default function ViewerInterface({ sessionId }: ViewerInterfaceProps) {
                       </span>
                     </div>
                   )}
+                  
+                  {/* Debug Info */}
+                  <div className="pt-2 border-t border-slate-600">
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div>User ID: {userId}</div>
+                      {participantId && <div>Participant ID: {participantId}</div>}
+                      {room.hostParticipantId && <div>Host Participant ID: {room.hostParticipantId}</div>}
+                      <div>Remote Streams: {remoteStreams.size}</div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
